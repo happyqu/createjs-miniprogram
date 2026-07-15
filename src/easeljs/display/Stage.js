@@ -232,6 +232,7 @@ import createjs from "../../createjs/createjs";
 		// so masks, alpha and composite semantics remain unchanged.
 		this._stageRenderList = [];
 		this._stageRenderListDirty = true;
+		this._stageRenderVersion = 0;
 		this._dirtyRegionManager = new createjs.DirtyRegionManager();
 		this._cacheManager = new createjs.CacheManager();
 		this._phase2States = {};
@@ -241,6 +242,7 @@ import createjs from "../../createjs/createjs";
 		this._phase2StageVersion = -1;
 		this._phase2StageProps = null;
 		this._dirtyRenderManager = null;
+		this.renderer = new createjs.CanvasRenderer();
 
 
 		// initialize:
@@ -396,6 +398,7 @@ import createjs from "../../createjs/createjs";
 			this.dispatchEvent("drawend");
 			if (measure) {
 				perf._setPhase2Metrics(dirty,false,this._cacheManager.cacheObjectCount,0,this._stageRenderList.length);
+				perf._setPhase3Metrics(this.renderer,false);
 				perf._snapshot(updateTime,perf._now()-renderStart,this._stageRenderList.length);
 			}
 			return;
@@ -426,15 +429,18 @@ import createjs from "../../createjs/createjs";
 		this.updateContext(ctx);
 		this._dirtyRenderManager=dirty && !dirty.fullRender ? dirty : null;
 		if (createjs.BitmapBatchRenderer && createjs.BitmapBatchRenderer._shared) { createjs.BitmapBatchRenderer._shared.batchCount=0; }
-		// this.ctx.drawImage(getApp().globalData.img,0,0);
-		this.draw(ctx, false);
+		var phase3=perf && perf.phase3 !== false, compiled=false;
+		if (phase3 && this.renderer) { compiled=this.renderer.render(this,ctx,this._dirtyRenderManager); }
+		if (!compiled) { this.draw(ctx, false); }
 		this._dirtyRenderManager=null;
 		ctx.restore();
 		this.dispatchEvent("drawend");
+		if (createjs.quality==="auto" && createjs.QualityManager) { createjs.QualityManager.shared.update(perf._now()-renderStart); }
 		if (measure) {
 			if (this._stageRenderListDirty) { this._rebuildStageRenderList(); }
 			perf._setPhase2Metrics(dirty,!dirty || dirty.fullRender,this._cacheManager.cacheObjectCount,
 				createjs.BitmapBatchRenderer._shared ? createjs.BitmapBatchRenderer._shared.batchCount : 0,this._stageRenderList.length);
+			perf._setPhase3Metrics(this.renderer,compiled);
 			perf._snapshot(updateTime, perf._now()-renderStart, this._stageRenderList.length);
 		}
 	};
@@ -547,6 +553,7 @@ import createjs from "../../createjs/createjs";
 		}
 		append(this);
 		this._stageRenderListDirty=false;
+		this._stageRenderVersion++;
 		return output;
 	};
 

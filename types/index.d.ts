@@ -87,15 +87,59 @@ interface PerformanceMetrics {
   drawCalls: number;
   skippedObjects: number;
   bitmapBatches: number;
+  compiledRender: boolean;
+  commandCount: number;
+  canvasCalls: number;
+  offscreenSurfaces: number;
+  workerEnabled: boolean;
 }
 
 interface CreateJSPerformance extends PerformanceMetrics {
   enable: boolean;
   phase2: boolean;
+  phase3: boolean;
+  inspect: boolean;
   debug: boolean;
   log: boolean;
   reset(): void;
   getMetrics(): PerformanceMetrics;
+}
+
+declare class OffscreenCache {
+  maxSurfaces: number;
+  maxPixels: number;
+  readonly size: number;
+  created: number;
+  reused: number;
+  acquire(width: number, height: number): CanvasLike;
+  release(surface: CanvasLike): void;
+  clear(): void;
+  static shared: OffscreenCache;
+}
+
+declare class TextureManager {
+  register(key: string, image: unknown): unknown;
+  get(key: string): unknown;
+  retain(key: string): unknown;
+  load(key: string, loader: (key: string) => unknown | Promise<unknown>): Promise<unknown>;
+  release(key: string): boolean;
+  clear(): void;
+  static shared: TextureManager;
+}
+
+declare class WorkerRenderer {
+  constructor(worker?: unknown);
+  enabled: boolean;
+  connect(worker: unknown): boolean;
+  computeMatrices(items: Array<{local: number[]; parent?: number[]}>): Promise<number[][]>;
+  disconnect(): void;
+  static compute(items: Array<{local: number[]; parent?: number[]}>): number[][];
+}
+
+declare class QualityManager {
+  level: "high" | "medium" | "low";
+  update(frameTime: number): string;
+  static shared: QualityManager;
 }
 
 declare class Graphics {
@@ -172,6 +216,12 @@ export interface CreateJS {
   ButtonHelper: typeof ButtonHelper;
   Touch: TouchAPI;
   performance: CreateJSPerformance;
+  quality: "auto" | "high" | "medium" | "low";
+  OffscreenCache: typeof OffscreenCache;
+  TextureManager: typeof TextureManager;
+  WorkerRenderer: typeof WorkerRenderer;
+  workerRenderer: WorkerRenderer;
+  QualityManager: typeof QualityManager;
   Ticker: EventDispatcher & Record<string, unknown>;
   [key: string]: unknown;
 }

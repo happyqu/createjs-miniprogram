@@ -452,6 +452,14 @@ import createjs from "../../createjs/createjs";
 		this._needTick = false;
 		this._tickRequired = false;
 		this._phase2Matrix = new createjs.Matrix2D();
+		this._worldMatrix = new createjs.Matrix2D();
+		this._worldParent = null;
+		this._worldParentVersion = -1;
+		this._worldVersion = 0;
+		this._worldTransform = {
+			x:NaN,y:NaN,scaleX:NaN,scaleY:NaN,rotation:NaN,skewX:NaN,skewY:NaN,regX:NaN,regY:NaN,
+			transformMatrix:null,a:NaN,b:NaN,c:NaN,d:NaN,tx:NaN,ty:NaN
+		};
 
 		/**
 		 * @property _rectangle
@@ -1178,11 +1186,29 @@ import createjs from "../../createjs/createjs";
 	 * @return {Matrix2D} The combined matrix.
 	 **/
 	p.getConcatenatedMatrix = function(matrix) {
-		var o = this, mtx = this.getMatrix(matrix);
-		while (o = o.parent) {
-			mtx.prependMatrix(o.getMatrix(o._props.matrix));
+		return this._getWorldMatrix(matrix);
+	};
+
+	/** Returns the cached world matrix, refreshing only changed ancestor chains. @private */
+	p._getWorldMatrix = function(matrix) {
+		var parent=this.parent, parentVersion=0, parentMatrix=null;
+		if (parent) { parentMatrix=parent._getWorldMatrix(parent._worldMatrix); parentVersion=parent._worldVersion; }
+		var state=this._worldTransform, transform=this.transformMatrix;
+		var changed=state.x!==this.x || state.y!==this.y || state.scaleX!==this.scaleX || state.scaleY!==this.scaleY ||
+			state.rotation!==this.rotation || state.skewX!==this.skewX || state.skewY!==this.skewY ||
+			state.regX!==this.regX || state.regY!==this.regY || state.transformMatrix!==transform;
+		if (transform && (state.a!==transform.a || state.b!==transform.b || state.c!==transform.c ||
+			state.d!==transform.d || state.tx!==transform.tx || state.ty!==transform.ty)) { changed=true; }
+		if (changed || this._worldParent!==parent || this._worldParentVersion!==parentVersion) {
+			state.x=this.x; state.y=this.y; state.scaleX=this.scaleX; state.scaleY=this.scaleY;
+			state.rotation=this.rotation; state.skewX=this.skewX; state.skewY=this.skewY;
+			state.regX=this.regX; state.regY=this.regY; state.transformMatrix=transform;
+			if (transform) { state.a=transform.a; state.b=transform.b; state.c=transform.c; state.d=transform.d; state.tx=transform.tx; state.ty=transform.ty; }
+			var world=this.getMatrix(this._worldMatrix);
+			if (parentMatrix) { world.prependMatrix(parentMatrix); }
+			this._worldParent=parent; this._worldParentVersion=parentVersion; this._worldVersion++;
 		}
-		return mtx;
+		return (matrix || new createjs.Matrix2D()).copy(this._worldMatrix);
 	};
 
 	/**

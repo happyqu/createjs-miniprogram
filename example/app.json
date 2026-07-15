@@ -4,6 +4,7 @@
     "pages/benchmark/benchmark",
     "pages/logs/logs"
   ],
+  "workers": "workers",
   "window": {
     "navigationBarTextStyle": "black",
     "navigationBarTitleText": "Weixin",

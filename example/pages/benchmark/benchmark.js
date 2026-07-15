@@ -6,6 +6,7 @@ Page({
     testName: "1000 Bitmap", fps: "0.0", updateTime: "0.00", renderTime: "0.00",
     drawCount: 0, displayObjectCount: 0, firstPaint: 0, memory: "N/A",
     dirtyRect: 0, fullRender: true, cacheObject: 0, skippedObjects: 0, bitmapBatches: 0,
+    phase3: true, compiledRender: false, commandCount: 0, canvasCalls: 0, offscreenSurfaces: 0,
   },
 
   onReady() {
@@ -91,6 +92,11 @@ Page({
     else this.buildBitmapTest();
   },
 
+  togglePhase3() {
+    createjs.performance.phase3 = !createjs.performance.phase3;
+    this.setData({ phase3: createjs.performance.phase3 });
+  },
+
   updateMetrics() {
     const metrics = createjs.performance.getMetrics();
     this.setData({
@@ -100,6 +106,10 @@ Page({
       dirtyRect: metrics.dirtyRect, fullRender: metrics.fullRender,
       cacheObject: metrics.cacheObject, skippedObjects: metrics.skippedObjects,
       bitmapBatches: metrics.bitmapBatches,
+      compiledRender: metrics.compiledRender,
+      commandCount: metrics.commandCount,
+      canvasCalls: metrics.canvasCalls,
+      offscreenSurfaces: metrics.offscreenSurfaces,
       memory: metrics.memory == null ? "N/A" : `${(metrics.memory / 1048576).toFixed(1)} MB`,
     });
   },
@@ -109,5 +119,6 @@ Page({
     if (this.metricsTimer) clearInterval(this.metricsTimer);
     createjs.Tween.removeAllTweens();
     createjs.performance.enable = false;
+    createjs.performance.phase3 = true;
   },
 });

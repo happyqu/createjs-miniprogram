@@ -16,7 +16,7 @@ global.wx = {
           clearRect(...args) { canvas.clearCalls.push(args); },
           save() { canvas.contextCalls.save++; },
           restore() { canvas.contextCalls.restore++; },
-          setTransform() {},
+          setTransform() { canvas.contextCalls.setTransform = (canvas.contextCalls.setTransform || 0) + 1; },
           transform() { canvas.contextCalls.transform++; },
           translate() {},
           beginPath() {},
@@ -149,12 +149,63 @@ assert.equal(createjs.performance.displayObjectCount, 1);
 fastStage.addChild(new createjs.Bitmap(canvas).set({ rotation: 10 }));
 fastStage.update();
 assert.equal(createjs.performance.displayObjectCount, 2);
-assert.ok(fastCanvas.contextCalls.save >= 3);
+assert.equal(createjs.performance.compiledRender, true);
+assert.equal(createjs.performance.commandCount, 2);
+assert.ok(fastCanvas.contextCalls.setTransform >= 2);
+createjs.performance.phase3 = false;
+const legacySaves = fastCanvas.contextCalls.save;
+fastStage.children[1].x += 1;
+fastStage.update();
+assert.ok(fastCanvas.contextCalls.save > legacySaves);
+assert.equal(createjs.performance.compiledRender, false);
+createjs.performance.phase3 = true;
 const directlyManaged = new createjs.Bitmap(canvas);
 directlyManaged.parent = fastStage;
 fastStage.children.push(directlyManaged);
 fastStage.update();
 assert.equal(createjs.performance.displayObjectCount, 3);
+createjs.performance.enable = false;
+
+// Phase 3 world matrices are stable until a local or ancestor transform changes.
+const worldParent = new createjs.Container().set({ x: 10, scaleX: 2 });
+const worldChild = new createjs.Bitmap(canvas).set({ x: 3 });
+worldParent.addChild(worldChild);
+const firstWorldVersion = worldChild._worldVersion;
+assert.equal(worldChild.getConcatenatedMatrix().tx, 16);
+const cachedWorldVersion = worldChild._worldVersion;
+worldChild.getConcatenatedMatrix();
+assert.equal(worldChild._worldVersion, cachedWorldVersion);
+worldParent.x = 20;
+assert.equal(worldChild.getConcatenatedMatrix().tx, 26);
+assert.ok(worldChild._worldVersion > firstWorldVersion);
+
+// Offscreen surfaces are reused at an exact pixel size and remain bounded.
+const surfacePool = new createjs.OffscreenCache();
+const pooledSurface = surfacePool.acquire(32, 16);
+surfacePool.release(pooledSurface);
+assert.strictEqual(surfacePool.acquire(32, 16), pooledSurface);
+assert.equal(surfacePool.reused, 1);
+
+assert.deepEqual(createjs.WorkerRenderer.compute([
+  { local: [1, 0, 0, 1, 3, 4], parent: [2, 0, 0, 2, 10, 20] },
+]), [[2, 0, 0, 2, 16, 28]]);
+
+const textures = new createjs.TextureManager();
+textures.register("tile", canvas);
+assert.strictEqual(textures.retain("tile"), canvas);
+assert.equal(textures.release("tile"), true);
+assert.strictEqual(textures.get("tile"), canvas);
+assert.equal(textures.release("tile"), true);
+assert.equal(textures.get("tile"), undefined);
+
+// Unsupported display objects retain the original compatible renderer.
+const fallbackCanvas = createjs.createCanvas(20, 20);
+const fallbackStage = new createjs.Stage(fallbackCanvas);
+fallbackStage.tickOnUpdate = false;
+fallbackStage.addChild(new createjs.Shape());
+createjs.performance.enable = true;
+fallbackStage.update();
+assert.equal(createjs.performance.compiledRender, false);
 createjs.performance.enable = false;
 
 // Phase 2 dirty rectangles: unchanged frames draw nothing, and moving one

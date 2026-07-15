@@ -54,6 +54,7 @@
     "clean": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\"",
     "build": "npm run clean && esbuild src/easeljs/package.js --bundle --format=esm --platform=neutral --target=es2017 --minify --legal-comments=none --outfile=dist/index.mjs && esbuild src/easeljs/package.js --bundle --format=cjs --platform=neutral --target=es2017 --minify --legal-comments=none --footer:js=module.exports=module.exports.default --outfile=dist/index.js && esbuild src/tweenjs/package.js --bundle --external:@happyqu/createjs-miniprogram --format=esm --platform=neutral --target=es2017 --minify --legal-comments=none --outfile=dist/tweenjs.mjs && esbuild src/tweenjs/package.js --bundle --external:@happyqu/createjs-miniprogram --format=cjs --platform=neutral --target=es2017 --minify --legal-comments=none --footer:js=module.exports=module.exports.default --outfile=dist/tweenjs.js && node scripts/copy-types.cjs && node scripts/sync-example.cjs",
     "test": "npm run build && node scripts/check-browser-globals.cjs && node scripts/smoke-test.cjs",
+    "benchmark:phase3": "npm run build && node scripts/phase3-benchmark.cjs",
     "prepublishOnly": "npm test && npm pack --dry-run"
   },
   "devDependencies": {

@@ -525,8 +525,10 @@ import createjs from "../../createjs/createjs";
 			// }
 		// }
 
+		var releasedSurface=!this._stageGL && this._cacheCanvas;
 		this.disabled = true;
 		this.target = this._cacheCanvas = null;
+		if (releasedSurface && createjs.OffscreenCache) { createjs.OffscreenCache.shared.release(releasedSurface); }
 		this.cacheID = this._cacheDataURLID = this._cacheDataURL = undefined;
 		this.width = this.height = this.x = this.y = this.offX = this.offY = 0;
 		this.scale = 1;
@@ -617,7 +619,8 @@ import createjs from "../../createjs/createjs";
 
 		surface = this._cacheCanvas;
 		if (!surface) {
-			surface = this._cacheCanvas = createjs.createCanvas();
+			surface = this._cacheCanvas = createjs.OffscreenCache ?
+				createjs.OffscreenCache.shared.acquire(this._drawWidth,this._drawHeight) : createjs.createCanvas();
 			this.disabled = this._disabled;
 		}
 		surface.width = this._drawWidth;
