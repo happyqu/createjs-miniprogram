@@ -6,13 +6,14 @@ global.wx = {
       width,
       height,
       drawCalls: [],
+      clearCalls: [],
       contextCalls: { save: 0, restore: 0, transform: 0 },
       getContext() {
         return {
           drawImage(...args) {
             canvas.drawCalls.push(args);
           },
-          clearRect() {},
+          clearRect(...args) { canvas.clearCalls.push(args); },
           save() { canvas.contextCalls.save++; },
           restore() { canvas.contextCalls.restore++; },
           setTransform() {},
@@ -21,6 +22,10 @@ global.wx = {
           beginPath() {},
           rect() {},
           clip() {},
+          createPattern() { return {}; },
+          measureText(text) { return { width: String(text).length * 10 }; },
+          fillText() {},
+          strokeText() {},
         };
       },
     };
@@ -62,6 +67,36 @@ const canvas = createjs.createCanvas(4, 4);
 assert.equal(createjs.Touch.isSupported(), true);
 assert.equal(createjs.Filter.isValidImageSource(canvas), true);
 assert.doesNotThrow(() => new createjs.AlphaMapFilter(canvas));
+
+// Real-device CanvasImage objects can have width/height without browser
+// naturalWidth/readyState. They must still be visible and bounded.
+const deviceImage = { width: 9, height: 7 };
+const deviceBitmap = new createjs.Bitmap(deviceImage);
+assert.equal(deviceBitmap.isVisible(), true);
+assert.deepEqual(
+  { width: deviceBitmap.getBounds().width, height: deviceBitmap.getBounds().height },
+  { width: 9, height: 7 },
+);
+const deviceCanvas = createjs.createCanvas(20, 20);
+const deviceStage = new createjs.Stage(deviceCanvas);
+deviceStage.tickOnUpdate = false;
+deviceStage.addChild(deviceBitmap);
+deviceStage.update();
+assert.strictEqual(deviceCanvas.drawCalls[0][0], deviceImage);
+assert.doesNotThrow(() => new createjs.Graphics().beginBitmapFill(deviceImage));
+
+const cacheText = new createjs.Text("Glyph", "20px sans-serif", "#000");
+cacheText.setBounds(0, 0, 50, 20);
+const textPadding = cacheText._getPhase2BoundsPadding();
+assert.ok(textPadding >= 7);
+const textState = {};
+cacheText._updatePhase2Bounds(textState);
+assert.ok(textState.x <= -textPadding);
+const textCacheManager = new createjs.CacheManager();
+assert.equal(textCacheManager.create(cacheText), true);
+assert.equal(cacheText.bitmapCache.x, -textPadding);
+assert.equal(cacheText.bitmapCache.width, 50 + textPadding * 2);
+textCacheManager.release(cacheText);
 
 const pooledMatrix = createjs.Matrix2DPool.get().setValues(2, 0, 0, 2, 3, 4);
 createjs.Matrix2DPool.release(pooledMatrix);
@@ -120,6 +155,98 @@ directlyManaged.parent = fastStage;
 fastStage.children.push(directlyManaged);
 fastStage.update();
 assert.equal(createjs.performance.displayObjectCount, 3);
+createjs.performance.enable = false;
+
+// Phase 2 dirty rectangles: unchanged frames draw nothing, and moving one
+// bounded object redraws only its old/new regions.
+const dirtyCanvas = createjs.createCanvas(120, 80);
+const dirtyStage = new createjs.Stage(dirtyCanvas);
+dirtyStage.tickOnUpdate = false;
+const movingBitmap = new createjs.Bitmap(canvas).set({ x: 4, y: 4 });
+const stillBitmap = new createjs.Bitmap(canvas).set({ x: 90, y: 60 });
+dirtyStage.addChild(movingBitmap, stillBitmap);
+createjs.performance.enable = true;
+dirtyStage.update();
+const initialDraws = dirtyCanvas.drawCalls.length;
+dirtyStage.update();
+assert.equal(dirtyCanvas.drawCalls.length, initialDraws);
+assert.equal(createjs.performance.fullRender, false);
+movingBitmap.x = 30;
+const clearCount = dirtyCanvas.clearCalls.length;
+dirtyStage.update();
+assert.ok(dirtyCanvas.clearCalls.length > clearCount);
+assert.ok(createjs.performance.dirtyRect >= 1);
+assert.equal(createjs.performance.fullRender, false);
+assert.equal(dirtyCanvas.drawCalls.length, initialDraws + 1);
+
+// Phase 2 has a complete fallback to the original full-render path.
+createjs.performance.phase2 = false;
+const fallbackDraws = dirtyCanvas.drawCalls.length;
+dirtyStage.update();
+assert.equal(dirtyCanvas.drawCalls.length, fallbackDraws + 2);
+createjs.performance.phase2 = true;
+
+// Stable containers flatten into an internal auto-generated bitmap cache and
+// return to live rendering as soon as they change.
+const cacheCanvas = createjs.createCanvas(120, 80);
+const cacheStage = new createjs.Stage(cacheCanvas);
+cacheStage.tickOnUpdate = false;
+cacheStage.scaleX = cacheStage.scaleY = 2;
+cacheStage._cacheManager.staticFrames = 2;
+const staticGroup = new createjs.Container();
+for (let i = 0; i < 3; i++) {
+  staticGroup.addChild(new createjs.Bitmap(canvas).set({ x: i * 5 }));
+}
+cacheStage.addChild(staticGroup);
+cacheStage.update();
+cacheStage.update();
+cacheStage.update();
+assert.equal(staticGroup._autoCache, true);
+assert.ok(staticGroup.bitmapCache);
+assert.equal(staticGroup.cacheCanvas, null);
+assert.equal(staticGroup.bitmapCache.scale, 2);
+createjs.performance.phase2 = false;
+cacheStage.update();
+assert.equal(staticGroup._autoCache, false);
+createjs.performance.phase2 = true;
+cacheStage._cacheManager.staticFrames = 2;
+cacheStage.update();
+cacheStage.update();
+cacheStage.update();
+assert.equal(staticGroup._autoCache, true);
+staticGroup.x = 10;
+cacheStage.update();
+assert.equal(staticGroup._autoCache, false);
+
+const movieCacheCanvas = createjs.createCanvas(40, 40);
+const movieCacheStage = new createjs.Stage(movieCacheCanvas);
+movieCacheStage.tickOnUpdate = false;
+const stoppedClip = new createjs.MovieClip({ paused: true });
+stoppedClip.setBounds(0, 0, 10, 10);
+stoppedClip.addChild(new createjs.Bitmap(canvas));
+movieCacheStage.addChild(stoppedClip);
+movieCacheStage.update();
+movieCacheStage.update();
+movieCacheStage.update();
+assert.equal(stoppedClip._autoCache, true);
+stoppedClip.gotoAndPlay(0);
+assert.equal(stoppedClip._autoCache, false);
+
+// Static leaves are omitted from the active tick list, while tick listeners
+// added later become active immediately.
+const tickCanvas = createjs.createCanvas(20, 20);
+const tickStage = new createjs.Stage(tickCanvas);
+const tickBitmap = new createjs.Bitmap(canvas);
+tickStage.addChild(tickBitmap);
+tickStage.update();
+let optimizedTicks = 0;
+const tickListener = () => optimizedTicks++;
+tickBitmap.addEventListener("tick", tickListener);
+tickStage.update();
+assert.equal(optimizedTicks, 1);
+tickBitmap.removeEventListener("tick", tickListener);
+tickStage.update();
+assert.equal(optimizedTicks, 1);
 createjs.performance.enable = false;
 
 const touchCalls = [];

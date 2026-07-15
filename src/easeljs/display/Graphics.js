@@ -233,6 +233,9 @@ import createjs from "../../createjs/createjs";
 		 **/
 		this._dirty = false;
 
+		/** Monotonic content version used by the Phase 2 invalidation tracker. @private */
+		this._version = 0;
+
 		/**
 		 * Index to draw from if a store operation has happened.
 		 * @property _storeIndex
@@ -677,6 +680,7 @@ import createjs from "../../createjs/createjs";
 		this._instructions.length = this._activeInstructions.length = this._commitIndex = 0;
 		this._strokeStyle = this._oldStrokeStyle = this._stroke = this._fill = this._strokeDash = this._oldStrokeDash = null;
 		this._dirty = this._strokeIgnoreScale = false;
+		this._version++;
 		return this;
 	};
 
@@ -1083,6 +1087,7 @@ import createjs from "../../createjs/createjs";
 		if (!clean) {
 			this._dirty = true;
 		}
+		this._version++;
 		return this;
 	};
 
@@ -2140,7 +2145,7 @@ import createjs from "../../createjs/createjs";
 	 * @return {Fill} Returns this Fill object for chaining or assignment.
 	 */
 	p.bitmap = function (image, repetition) {
-		if (image.naturalWidth || image.getContext || image.readyState >= 2) {
+		if (image && (image.width || image.height || image.naturalWidth || image.getContext || image.readyState >= 2)) {
 			var o = this.style = Graphics._getContext().createPattern(image, repetition || "");
 			o.props = {
 				image: image,

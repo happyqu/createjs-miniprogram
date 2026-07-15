@@ -232,6 +232,15 @@ import createjs from "../../createjs/createjs";
 		// so masks, alpha and composite semantics remain unchanged.
 		this._stageRenderList = [];
 		this._stageRenderListDirty = true;
+		this._dirtyRegionManager = new createjs.DirtyRegionManager();
+		this._cacheManager = new createjs.CacheManager();
+		this._phase2States = {};
+		this._phase2Frame = 0;
+		this._phase2FirstRender = true;
+		this._phase2WasEnabled = false;
+		this._phase2StageVersion = -1;
+		this._phase2StageProps = null;
+		this._dirtyRenderManager = null;
 
 
 		// initialize:
@@ -372,38 +381,156 @@ import createjs from "../../createjs/createjs";
 	 **/
 	p.update = function (props) {
 		if (!this.canvas) { return; }
-		var perf=createjs.performance, measure=perf && perf.enable;
+		var perf=createjs.performance, measure=perf && (perf.enable || perf.debug);
+		if (perf) { perf._active=!!measure; }
 		var updateStart=measure ? perf._now() : 0;
 		if (this.tickOnUpdate) { this.tick(props); }
-		var updateTime=measure ? perf._now()-updateStart : 0;
 		if (this.dispatchEvent("drawstart", false, true) === false) { return; }
+		var phase2=perf && perf.phase2 !== false;
+		if (phase2) { this._phase2WasEnabled=true; }
+		else if (this._phase2WasEnabled) { this._disablePhase2(); }
+		var dirty=phase2 ? this._preparePhase2() : null;
+		var updateTime=measure ? perf._now()-updateStart : 0;
 		var renderStart=measure ? perf._now() : 0;
+		if (dirty && !dirty.fullRender && dirty.regions.length === 0) {
+			this.dispatchEvent("drawend");
+			if (measure) {
+				perf._setPhase2Metrics(dirty,false,this._cacheManager.cacheObjectCount,0,this._stageRenderList.length);
+				perf._snapshot(updateTime,perf._now()-renderStart,this._stageRenderList.length);
+			}
+			return;
+		}
 		createjs.DisplayObject._snapToPixelEnabled = this.snapToPixelEnabled;
 		var r = this.drawRect;
 		// var ctx =this.canvas.getContext("2d");
 		var ctx =this.ctx;
 		ctx.setTransform(1, 0, 0, 1, 0, 0);
 		if (this.autoClear) {
-			if (r) { ctx.clearRect(r.x, r.y, r.width, r.height); }
+			if (dirty && !dirty.fullRender) {
+				for (var i=0; i<dirty.regions.length; i++) { var region=dirty.regions[i]; ctx.clearRect(region.x,region.y,region.width,region.height); }
+			} else if (r) { ctx.clearRect(r.x, r.y, r.width, r.height); }
 			else { ctx.clearRect(0, 0, this.canvas.width, this.canvas.height); }
 		}
 		// count++
 		// console.log(count)
 		ctx.save();
-		if (this.drawRect) {
+		if (dirty && !dirty.fullRender) {
+			ctx.beginPath();
+			for (i=0; i<dirty.regions.length; i++) { region=dirty.regions[i]; ctx.rect(region.x,region.y,region.width,region.height); }
+			ctx.clip();
+		} else if (this.drawRect) {
 			ctx.beginPath();
 			ctx.rect(r.x, r.y, r.width, r.height);
 			ctx.clip();
 		}
 		this.updateContext(ctx);
+		this._dirtyRenderManager=dirty && !dirty.fullRender ? dirty : null;
+		if (createjs.BitmapBatchRenderer && createjs.BitmapBatchRenderer._shared) { createjs.BitmapBatchRenderer._shared.batchCount=0; }
 		// this.ctx.drawImage(getApp().globalData.img,0,0);
 		this.draw(ctx, false);
+		this._dirtyRenderManager=null;
 		ctx.restore();
 		this.dispatchEvent("drawend");
 		if (measure) {
 			if (this._stageRenderListDirty) { this._rebuildStageRenderList(); }
+			perf._setPhase2Metrics(dirty,!dirty || dirty.fullRender,this._cacheManager.cacheObjectCount,
+				createjs.BitmapBatchRenderer._shared ? createjs.BitmapBatchRenderer._shared.batchCount : 0,this._stageRenderList.length);
 			perf._snapshot(updateTime, perf._now()-renderStart, this._stageRenderList.length);
 		}
+	};
+
+	/** Detects visual changes, updates auto caches, and returns dirty regions. @private */
+	p._preparePhase2 = function() {
+		var manager=this._dirtyRegionManager, canvas=this.canvas;
+		manager.reset(canvas.width,canvas.height);
+		if (!this.autoClear || this.drawRect) { manager.setFullRender(); }
+		var stageProps=this._phase2StageProps;
+		if (!stageProps || stageProps.x!==this.x || stageProps.y!==this.y || stageProps.scaleX!==this.scaleX ||
+			stageProps.scaleY!==this.scaleY || stageProps.rotation!==this.rotation || stageProps.skewX!==this.skewX ||
+			stageProps.skewY!==this.skewY || stageProps.regX!==this.regX || stageProps.regY!==this.regY ||
+			stageProps.alpha!==this.alpha || stageProps.visible!==this.visible) {
+			manager.setFullRender();
+			stageProps=this._phase2StageProps=stageProps || {};
+			stageProps.x=this.x; stageProps.y=this.y; stageProps.scaleX=this.scaleX; stageProps.scaleY=this.scaleY;
+			stageProps.rotation=this.rotation; stageProps.skewX=this.skewX; stageProps.skewY=this.skewY;
+			stageProps.regX=this.regX; stageProps.regY=this.regY; stageProps.alpha=this.alpha; stageProps.visible=this.visible;
+		}
+		// Detect advanced direct edits to the public children arrays before relying
+		// on the structural flat list.
+		this._getRenderList();
+		for (var cachedIndex=0; cachedIndex<this._stageRenderList.length; cachedIndex++) {
+			var cachedObject=this._stageRenderList[cachedIndex];
+			if (cachedObject._getRenderList) { cachedObject._getRenderList(); }
+		}
+		if (this._phase2StageVersion !== this._displayListVersion) {
+			manager.setFullRender();
+			this._phase2StageVersion=this._displayListVersion;
+		}
+		if (this._stageRenderListDirty) { this._rebuildStageRenderList(); }
+		var list=this._stageRenderList;
+		// Resolve synchronized MovieClips before bounds/content comparison.
+		for (var i=0; i<list.length; i++) { if (list[i]._updateState) { list[i]._updateState(); } }
+		if (this._stageRenderListDirty) { this._rebuildStageRenderList(); list=this._stageRenderList; }
+
+		var frame=++this._phase2Frame, states=this._phase2States, changed={};
+		for (i=0; i<list.length; i++) {
+			var o=list[i], previous=states[o.id], next=o._phase2NextState || (o._phase2NextState={});
+			next.xProp=o.x; next.yProp=o.y; next.scaleX=o.scaleX; next.scaleY=o.scaleY;
+			next.rotation=o.rotation; next.skewX=o.skewX; next.skewY=o.skewY;
+			next.regX=o.regX; next.regY=o.regY; next.alpha=o.alpha; next.visible=o.visible;
+			next.parentId=o.parent ? o.parent.id : -1; next.content=o._getPhase2ContentVersion();
+			next.image=o.image; var source=o.sourceRect;
+			next.sourceX=source&&source.x; next.sourceY=source&&source.y; next.sourceW=source&&source.width; next.sourceH=source&&source.height;
+			o._updatePhase2Bounds(next);
+			var transformChanged=!previous || previous.xProp!==next.xProp || previous.yProp!==next.yProp ||
+				previous.scaleX!==next.scaleX || previous.scaleY!==next.scaleY || previous.rotation!==next.rotation ||
+				previous.skewX!==next.skewX || previous.skewY!==next.skewY || previous.regX!==next.regX || previous.regY!==next.regY ||
+				previous.alpha!==next.alpha || previous.visible!==next.visible;
+			var contentChanged=!previous || previous.content!==next.content || previous.image!==next.image ||
+				previous.sourceX!==next.sourceX || previous.sourceY!==next.sourceY || previous.sourceW!==next.sourceW || previous.sourceH!==next.sourceH;
+			var structureChanged=!previous || previous.parentId!==next.parentId;
+			var boundsChanged=!previous || previous.hasBounds!==next.hasBounds || (next.hasBounds &&
+				(previous.x!==next.x || previous.y!==next.y || previous.width!==next.width || previous.height!==next.height));
+			transformChanged=transformChanged || boundsChanged;
+			var isChanged=transformChanged || contentChanged || structureChanged;
+			o._displayDirty=structureChanged?3:(contentChanged?2:(transformChanged?1:0));
+			if (!o._isPhase2Trackable()) { manager.setFullRender(); isChanged=true; }
+			if (isChanged) {
+				changed[o.id]=true;
+				if (previous && previous.hasBounds) { manager.addRect(previous); }
+				if (next.hasBounds) { manager.addRect(next); }
+				if (!next.hasBounds || (previous && !previous.hasBounds)) { manager.setFullRender(); }
+			}
+			if (!previous) { previous=states[o.id]={}; }
+			for (var key in next) { previous[key]=next[key]; }
+			previous.seen=frame; previous.object=o;
+			o._phase2GlobalBounds=previous;
+		}
+		for (var id in states) {
+			var state=states[id];
+			if (state.seen===frame) { continue; }
+			if (state.hasBounds) { manager.addRect(state); } else { manager.setFullRender(); }
+			if (state.object) { this._cacheManager.release(state.object); }
+			delete states[id];
+		}
+		if (this._phase2FirstRender) { manager.setFullRender(); this._phase2FirstRender=false; }
+		manager.finalize();
+		this._cacheManager.update(list,changed);
+		return manager;
+	};
+
+	/** Releases every internal optimization artifact for the documented fallback. @private */
+	p._disablePhase2 = function() {
+		for (var id in this._phase2States) {
+			var state=this._phase2States[id];
+			if (state.object) { this._cacheManager.release(state.object); }
+		}
+		this._phase2States={};
+		this._phase2FirstRender=true;
+		this._phase2StageVersion=-1;
+		this._phase2StageProps=null;
+		this._phase2WasEnabled=false;
+		this._cacheManager.cacheObjectCount=0;
 	};
 
 	/** @private */

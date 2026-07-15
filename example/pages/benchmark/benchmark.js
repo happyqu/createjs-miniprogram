@@ -5,6 +5,7 @@ Page({
   data: {
     testName: "1000 Bitmap", fps: "0.0", updateTime: "0.00", renderTime: "0.00",
     drawCount: 0, displayObjectCount: 0, firstPaint: 0, memory: "N/A",
+    dirtyRect: 0, fullRender: true, cacheObject: 0, skippedObjects: 0, bitmapBatches: 0,
   },
 
   onReady() {
@@ -47,13 +48,15 @@ Page({
   },
 
   buildBitmapTest() {
-    this.reset("1000 Bitmap");
+    this.reset("1000 静态 Bitmap / 自动 Flatten");
+    const group = new createjs.Container();
     for (let i = 0; i < 1000; i++) {
       const bitmap = new createjs.Bitmap(this.tile);
       bitmap.x = (i % 50) * (this.width / 50);
       bitmap.y = ((i / 50) | 0) * (this.height / 20);
-      this.stage.addChild(bitmap);
+      group.addChild(bitmap);
     }
+    this.stage.addChild(group);
   },
 
   buildMovieClipTest() {
@@ -68,24 +71,23 @@ Page({
     }
   },
 
-  buildComplexTest() {
-    this.reset("复杂混合场景");
-    for (let i = 0; i < 200; i++) {
-      const container = new createjs.Container();
-      const shape = new createjs.Shape();
-      shape.graphics.beginFill(i % 2 ? "#7c6cff" : "#52d6b8").drawCircle(0, 0, 5 + i % 8);
-      container.addChild(shape);
-      container.x = (i * 37) % this.width;
-      container.y = (i * 53) % this.height;
-      this.stage.addChild(container);
-      createjs.Tween.get(container, { loop: -1 }).to({ rotation: 360, alpha: 0.35 }, 900 + i * 3).to({ alpha: 1 }, 300);
+  buildMovingTest() {
+    this.reset("100 移动 Bitmap / Dirty Rectangle");
+    for (let i = 0; i < 100; i++) {
+      const bitmap = new createjs.Bitmap(this.tile);
+      bitmap.x = (i % 10) * (this.width / 10);
+      bitmap.y = ((i / 10) | 0) * (this.height / 10);
+      this.stage.addChild(bitmap);
+      createjs.Tween.get(bitmap, { loop: -1 })
+        .to({ x: Math.min(this.width - 8, bitmap.x + 18) }, 500 + i * 2)
+        .to({ x: bitmap.x }, 500 + i * 2);
     }
   },
 
   runTest(event) {
     const test = event.currentTarget.dataset.test;
     if (test === "movieclip") this.buildMovieClipTest();
-    else if (test === "complex") this.buildComplexTest();
+    else if (test === "moving") this.buildMovingTest();
     else this.buildBitmapTest();
   },
 
@@ -95,6 +97,9 @@ Page({
       fps: metrics.fps.toFixed(1), updateTime: metrics.updateTime.toFixed(2),
       renderTime: metrics.renderTime.toFixed(2), drawCount: metrics.drawCount,
       displayObjectCount: metrics.displayObjectCount,
+      dirtyRect: metrics.dirtyRect, fullRender: metrics.fullRender,
+      cacheObject: metrics.cacheObject, skippedObjects: metrics.skippedObjects,
+      bitmapBatches: metrics.bitmapBatches,
       memory: metrics.memory == null ? "N/A" : `${(metrics.memory / 1048576).toFixed(1)} MB`,
     });
   },

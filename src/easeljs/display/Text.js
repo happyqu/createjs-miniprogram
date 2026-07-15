@@ -414,7 +414,6 @@ import createjs from "../../createjs/createjs";
 					}
 				}
 			}
-			console.log('paint',paint)
 			if (paint) {
 				this._drawTextLine(ctx, str, count * lineHeight);
 			}

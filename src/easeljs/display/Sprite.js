@@ -161,6 +161,7 @@ import createjs from "../../createjs/createjs";
 		 * @default false
 		 **/
 		this._skipAdvance = false;
+		this._tickRequired = this._needTick = true;
 
 		// Docced in superclass
 		this._webGLRenderStyle = createjs.DisplayObject._StageGL_SPRITE;

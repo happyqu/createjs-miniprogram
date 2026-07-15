@@ -81,10 +81,18 @@ interface PerformanceMetrics {
   drawCount: number;
   displayObjectCount: number;
   memory: number | null;
+  dirtyRect: number;
+  fullRender: boolean;
+  cacheObject: number;
+  drawCalls: number;
+  skippedObjects: number;
+  bitmapBatches: number;
 }
 
 interface CreateJSPerformance extends PerformanceMetrics {
   enable: boolean;
+  phase2: boolean;
+  debug: boolean;
   log: boolean;
   reset(): void;
   getMetrics(): PerformanceMetrics;

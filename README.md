@@ -80,17 +80,24 @@ createjs.Tween.get(target).to({ x: 100 }, 500, createjs.Ease.quadOut);
 
 ### 性能监控
 
-Phase 1 提供可选的运行时指标，默认关闭且关闭时不进入计时代码：
+运行时指标默认关闭，打开后可同时查看 Phase 1 与 Phase 2 数据：
 
 ```js
 createjs.performance.enable = true;
 
 stage.update(event);
 console.log(createjs.performance.getMetrics());
-// { fps, renderTime, updateTime, drawCount, displayObjectCount, memory }
+// 还包括 dirtyRect、fullRender、cacheObject、drawCalls、
+// skippedObjects 和 bitmapBatches
 ```
 
-微信开发者工具中的 `pages/benchmark/benchmark` 页面可运行 1000 Bitmap、100 个 10 帧 MovieClip 和复杂混合场景测试。
+Phase 2 渲染优化默认开启，可随时完整回退：
+
+```js
+createjs.performance.phase2 = false;
+```
+
+开启 `createjs.performance.debug = true` 会逐帧输出脏矩形、全量渲染、自动缓存、DrawCall 与跳过对象等信息。微信开发者工具中的 `pages/benchmark/benchmark` 页面可运行 1000 静态 Bitmap、100 移动对象和 100 个 10 帧 MovieClip 测试。
 
 ## 开发与发布
 

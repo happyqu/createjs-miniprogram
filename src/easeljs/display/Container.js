@@ -74,6 +74,9 @@ import createjs from "../../createjs/createjs";
 		// changes, avoiding a children.slice() allocation on every frame.
 		this._renderList = [];
 		this._renderListDirty = true;
+		this._displayListVersion = 0;
+		this._tickList = [];
+		this._tickListDirty = true;
 		
 		/**
 		 * Indicates whether the children of this container are independently enabled for mouse/pointer interaction.
@@ -168,11 +171,18 @@ import createjs from "../../createjs/createjs";
 
 		// A cached snapshot preserves the old behaviour when the list is changed from
 		// inside draw(), while removing the per-frame array allocation.
-		var list = this._getRenderList();
+		var list = this._getRenderList(), manager=this._dirtyRenderManager;
+		var phase2=createjs.performance && createjs.performance.phase2 !== false;
+		var batch=phase2 && createjs.BitmapBatchRenderer && createjs.BitmapBatchRenderer._shared;
 		for (var i=0,l=list.length; i<l; i++) {
 			var child = list[i];
 			if (!child.isVisible()) { continue; }
-			if (createjs.performance && createjs.performance.enable) { createjs.performance._drawCount++; }
+			if (manager && !manager.intersects(child._phase2GlobalBounds)) { continue; }
+			if (!ignoreCache && batch && child._canDrawBitmapFast && child._canDrawBitmapFast()) {
+				i=batch.drawRun(ctx,list,i,manager)-1;
+				continue;
+			}
+			if (createjs.performance && createjs.performance._active) { createjs.performance._drawCount++; }
 			if (!ignoreCache && child._canDrawBitmapFast && child._canDrawBitmapFast()) {
 				child._drawBitmapFast(ctx);
 				continue;
@@ -569,8 +579,9 @@ import createjs from "../../createjs/createjs";
 	 **/
 	p._tick = function(evtObj) {
 		if (this.tickChildren) {
-			for (var i=this.children.length-1; i>=0; i--) {
-				var child = this.children[i];
+			var tickList=(createjs.performance && createjs.performance.phase2 !== false) ? this._getTickList() : this.children;
+			for (var i=tickList.length-1; i>=0; i--) {
+				var child = tickList[i];
 				if (child.tickEnabled && child._tick) { child._tick(evtObj); }
 			}
 		}
@@ -613,6 +624,21 @@ import createjs from "../../createjs/createjs";
 	};
 
 	/** @private */
+	p._getTickList = function() {
+		if (!this._tickListDirty) { return this._tickList; }
+		var oldNeedTick=this._needTick;
+		var output=this._tickList, children=this.children;
+		output.length=0;
+		for (var i=0; i<children.length; i++) { if (children[i]._needTick || children[i]._tickRequired) { output.push(children[i]); } }
+		this._tickListDirty=false;
+		this._needTick=this._tickRequired || !!(this._listeners && this._listeners.tick) || output.length>0;
+		if (oldNeedTick !== this._needTick) {
+			for (var parent=this.parent; parent; parent=parent.parent) { parent._tickListDirty=true; }
+		}
+		return output;
+	};
+
+	/** @private */
 	p._getRenderList = function() {
 		// `children` is public in EaselJS. Detect advanced direct edits as well as
 		// mutations made through the supported child-management APIs.
@@ -634,9 +660,14 @@ import createjs from "../../createjs/createjs";
 
 	/** Marks this container and its ancestors' render caches as stale. @private */
 	p._invalidateRenderList = function() {
+		this._displayListVersion++;
+		this._tickListDirty=true;
 		var o = this;
 		while (o) {
+			if (o._autoCache && o._releaseAutoCache) { o._releaseAutoCache(); }
 			o._renderListDirty = true;
+			o._tickListDirty = true;
+			o._needTick = true;
 			if (o._stageRenderListDirty !== undefined) { o._stageRenderListDirty = true; }
 			o = o.parent;
 		}

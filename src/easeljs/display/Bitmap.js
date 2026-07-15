@@ -124,7 +124,10 @@ import createjs from "../../createjs/createjs";
 	 **/
 	p.isVisible = function () {
 		var image = this.image;
-		var hasContent = this.cacheCanvas || (image && (image.naturalWidth || image.getContext || image.readyState >= 2));
+		if (image && image.getImage) { image=image.getImage(); }
+		// WeChat device CanvasImage objects expose width/height, but may not expose
+		// browser-only naturalWidth or readyState (the DevTools implementation does).
+		var hasContent = this.cacheCanvas || (image && (image.width || image.height || image.naturalWidth || image.getContext || image.readyState >= 2));
 		return !!(this.visible && this.alpha > 0 && this.scaleX != 0 && this.scaleY != 0 && hasContent);
 	};
 
@@ -224,9 +227,10 @@ import createjs from "../../createjs/createjs";
 		if (rect) {
 			return rect;
 		}
-		var image = this.image,
-			o = this.sourceRect || image;
-		var hasContent = (image && (image.naturalWidth || image.getContext || image.readyState >= 2));
+		var image = this.image;
+		if (image && image.getImage) { image=image.getImage(); }
+		var o = this.sourceRect || image;
+		var hasContent = (image && (image.width || image.height || image.naturalWidth || image.getContext || image.readyState >= 2));
 		return hasContent ? this._rectangle.setValues(0, 0, o.width, o.height) : null;
 	};
 

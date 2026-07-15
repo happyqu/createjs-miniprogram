@@ -285,6 +285,7 @@ import createjs from "../../createjs/createjs";
 		// Frame-specific child order is stable for Animate timelines. Cache that
 		// order so Container.draw can reuse it without allocating each frame.
 		this._cachedFrames = [];
+		this._tickRequired = this._needTick = true;
 	}
 	var p = createjs.extend(MovieClip, createjs.Container);
 
@@ -486,6 +487,7 @@ import createjs from "../../createjs/createjs";
 	 * @method play
 	 **/
 	p.play = function () {
+		this._releaseAutoCache();
 		this.paused = false;
 	};
 
@@ -503,6 +505,7 @@ import createjs from "../../createjs/createjs";
 	 * @param {String|Number} positionOrLabel The animation name or frame number to go to.
 	 **/
 	p.gotoAndPlay = function (positionOrLabel) {
+		this._releaseAutoCache();
 		this.paused = false;
 		this._goto(positionOrLabel);
 	};
@@ -513,6 +516,7 @@ import createjs from "../../createjs/createjs";
 	 * @param {String|Number} positionOrLabel The animation or frame name to go to.
 	 **/
 	p.gotoAndStop = function (positionOrLabel) {
+		this._releaseAutoCache();
 		this.paused = true;
 		this._goto(positionOrLabel);
 	};
@@ -541,6 +545,7 @@ import createjs from "../../createjs/createjs";
 		if (this.paused) {
 			return;
 		}
+		this._releaseAutoCache();
 
 		// calculate how many frames to advance:
 		var t = (fps !== null && fps !== -1 && time !== null) ? time / (1000 / fps) + this._t : 1;
