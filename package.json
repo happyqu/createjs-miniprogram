@@ -1,0 +1,65 @@
+{
+  "name": "@happyqu/createjs-miniprogram",
+  "version": "1.0.0",
+  "description": "CreateJS (EaselJS and TweenJS) adapted for WeChat Mini Programs",
+  "keywords": [
+    "createjs",
+    "easeljs",
+    "tweenjs",
+    "wechat",
+    "weapp",
+    "miniprogram",
+    "canvas"
+  ],
+  "homepage": "https://github.com/happyqu/createjs-miniprogram#readme",
+  "bugs": {
+    "url": "https://github.com/happyqu/createjs-miniprogram/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/happyqu/createjs-miniprogram.git"
+  },
+  "license": "MIT",
+  "author": "happy",
+  "main": "./dist/index.js",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
+  "miniprogram": "./dist",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js",
+      "default": "./dist/index.mjs"
+    },
+    "./tweenjs": {
+      "types": "./dist/tweenjs.d.ts",
+      "import": "./dist/tweenjs.mjs",
+      "require": "./dist/tweenjs.js",
+      "default": "./dist/tweenjs.mjs"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist",
+    "LICENSE",
+    "README.md"
+  ],
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  },
+  "sideEffects": true,
+  "scripts": {
+    "clean": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\"",
+    "build": "npm run clean && esbuild src/easeljs/package.js --bundle --format=esm --platform=neutral --target=es2017 --minify --legal-comments=none --outfile=dist/index.mjs && esbuild src/easeljs/package.js --bundle --format=cjs --platform=neutral --target=es2017 --minify --legal-comments=none --footer:js=module.exports=module.exports.default --outfile=dist/index.js && esbuild src/tweenjs/package.js --bundle --external:@happyqu/createjs-miniprogram --format=esm --platform=neutral --target=es2017 --minify --legal-comments=none --outfile=dist/tweenjs.mjs && esbuild src/tweenjs/package.js --bundle --external:@happyqu/createjs-miniprogram --format=cjs --platform=neutral --target=es2017 --minify --legal-comments=none --footer:js=module.exports=module.exports.default --outfile=dist/tweenjs.js && node scripts/copy-types.cjs && node scripts/sync-example.cjs",
+    "test": "npm run build && node scripts/check-browser-globals.cjs && node scripts/smoke-test.cjs",
+    "prepublishOnly": "npm test && npm pack --dry-run"
+  },
+  "devDependencies": {
+    "esbuild": "^0.25.0"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

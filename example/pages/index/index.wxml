@@ -1,0 +1,48 @@
+<view class="page-shell">
+  <view class="hero-copy">
+    <view class="eyebrow">CREATEJS · WECHAT MINI PROGRAM</view>
+    <view class="headline">Canvas 动画演示</view>
+    <view class="description">图形、文字、补间动画与触摸事件都由 CreateJS 驱动</view>
+  </view>
+
+  <view class="canvas-card">
+    <canvas
+      id="demoCanvas"
+      class="demo-canvas"
+      type="2d"
+      bindtouchstart="canvasEvent"
+      bindtouchmove="canvasEvent"
+      bindtouchend="canvasEvent"
+      bindtouchcancel="canvasEvent"
+    ></canvas>
+    <view wx:if="{{!ready}}" class="loading">正在初始化 CreateJS…</view>
+  </view>
+
+  <button
+    class="cache-button {{stageCached ? 'is-cached' : ''}}"
+    disabled="{{!ready}}"
+    bindtap="toggleStageCache"
+  >
+    {{stageCached ? '取消 Stage 缓存' : '缓存当前 Stage'}}
+  </button>
+  <view class="cache-status">
+    {{stageCached ? '正在显示 cacheCanvas，动画属性仍更新但画面保持缓存快照' : '实时绘制模式，点击按钮测试 createjs.DisplayObject.cache()'}}
+  </view>
+
+  <view class="stats">
+    <view class="stat-item">
+      <text class="stat-value">EaselJS</text>
+      <text class="stat-label">绘制引擎</text>
+    </view>
+    <view class="divider"></view>
+    <view class="stat-item">
+      <text class="stat-value">TweenJS</text>
+      <text class="stat-label">动画引擎</text>
+    </view>
+    <view class="divider"></view>
+    <view class="stat-item">
+      <text class="stat-value">{{stageCached ? 'Cached' : 'Live'}}</text>
+      <text class="stat-label">Stage 状态</text>
+    </view>
+  </view>
+</view>
