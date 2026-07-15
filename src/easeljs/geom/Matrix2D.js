@@ -528,6 +528,26 @@ import createjs from "../../createjs/createjs";
 	// this has to be populated after the class is defined:
 	Matrix2D.identity = new Matrix2D();
 
+	/**
+	 * Internal-friendly Matrix2D pool. Matrices returned by get() are reset to
+	 * identity and must be returned with release() when no longer retained.
+	 */
+	var matrixPool = [];
+	createjs.Matrix2DPool = {
+		maxSize: 256,
+		get: function() {
+			return matrixPool.length ? matrixPool.pop().identity() : new Matrix2D();
+		},
+		release: function(matrix) {
+			if (matrix && matrix !== Matrix2D.identity && matrixPool.length < this.maxSize && matrixPool.indexOf(matrix) === -1) {
+				matrix.identity();
+				matrixPool.push(matrix);
+			}
+		},
+		clear: function() { matrixPool.length = 0; },
+		get size() { return matrixPool.length; }
+	};
+
 
 	createjs.Matrix2D = Matrix2D;
 }());

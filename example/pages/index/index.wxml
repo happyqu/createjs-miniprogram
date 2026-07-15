@@ -29,6 +29,8 @@
     {{stageCached ? '正在显示 cacheCanvas，动画属性仍更新但画面保持缓存快照' : '实时绘制模式，点击按钮测试 createjs.DisplayObject.cache()'}}
   </view>
 
+  <navigator class="benchmark-link" url="/pages/benchmark/benchmark">打开 Phase 1 性能测试</navigator>
+
   <view class="stats">
     <view class="stat-item">
       <text class="stat-value">EaselJS</text>

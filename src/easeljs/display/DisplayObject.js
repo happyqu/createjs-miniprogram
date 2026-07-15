@@ -436,6 +436,15 @@ import createjs from "../../createjs/createjs";
 		 **/
 		this._props = new createjs.DisplayProps();
 
+		// Local transform snapshot. Public transform fields remain untouched; this
+		// cache only avoids rebuilding the same matrix multiple times in a frame.
+		this._displayProps = {
+			x: NaN, y: NaN, scaleX: NaN, scaleY: NaN, rotation: NaN,
+			skewX: NaN, skewY: NaN, regX: NaN, regY: NaN,
+			alpha: NaN, transformMatrix: null,
+			matrix: new createjs.Matrix2D()
+		};
+
 		/**
 		 * @property _rectangle
 		 * @protected
@@ -798,6 +807,7 @@ import createjs from "../../createjs/createjs";
 	 **/
 	p.updateContext = function(ctx) {
 		var o=this, mask=o.mask, mtx= o._props.matrix;
+		o._displayProps.alpha=o.alpha;
 		
 		if (mask && mask.graphics && !mask.graphics.isEmpty()) {
 			mask.getMatrix(mtx);
@@ -1031,9 +1041,20 @@ import createjs from "../../createjs/createjs";
 	 * @return {Matrix2D} A matrix representing this display object's transform.
 	 **/
 	p.getMatrix = function(matrix) {
-		var o = this, mtx = matrix || new createjs.Matrix2D();
-		return o.transformMatrix ?  mtx.copy(o.transformMatrix) :
-			(mtx.identity() && mtx.appendTransform(o.x, o.y, o.scaleX, o.scaleY, o.rotation, o.skewX, o.skewY, o.regX, o.regY));
+		var o = this, cache = o._displayProps, source = cache.matrix;
+		if (o.transformMatrix) {
+			// A Matrix2D is mutable, so copy it on every read to preserve compatibility.
+			source.copy(o.transformMatrix);
+			cache.transformMatrix = o.transformMatrix;
+		} else if (cache.transformMatrix || cache.x !== o.x || cache.y !== o.y ||
+			cache.scaleX !== o.scaleX || cache.scaleY !== o.scaleY || cache.rotation !== o.rotation ||
+			cache.skewX !== o.skewX || cache.skewY !== o.skewY || cache.regX !== o.regX || cache.regY !== o.regY) {
+			cache.x=o.x; cache.y=o.y; cache.scaleX=o.scaleX; cache.scaleY=o.scaleY;
+			cache.rotation=o.rotation; cache.skewX=o.skewX; cache.skewY=o.skewY;
+			cache.regX=o.regX; cache.regY=o.regY; cache.alpha=o.alpha; cache.transformMatrix=null;
+			source.identity().appendTransform(o.x, o.y, o.scaleX, o.scaleY, o.rotation, o.skewX, o.skewY, o.regX, o.regY);
+		}
+		return (matrix || new createjs.Matrix2D()).copy(source);
 	};
 
 	/**

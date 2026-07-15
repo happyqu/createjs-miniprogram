@@ -1,0 +1,19 @@
+<view class="page">
+  <view class="title">CreateJS Phase 1 Benchmark</view>
+  <view class="controls">
+    <button size="mini" data-test="bitmap" bindtap="runTest">1000 Bitmap</button>
+    <button size="mini" data-test="movieclip" bindtap="runTest">100 MovieClip</button>
+    <button size="mini" data-test="complex" bindtap="runTest">复杂场景</button>
+  </view>
+  <canvas id="benchmarkCanvas" type="2d" class="canvas"></canvas>
+  <view class="metrics">
+    <view>场景：{{testName}}</view>
+    <view>FPS：{{fps}}</view>
+    <view>更新：{{updateTime}} ms</view>
+    <view>渲染：{{renderTime}} ms</view>
+    <view>绘制数：{{drawCount}}</view>
+    <view>显示对象：{{displayObjectCount}}</view>
+    <view>首屏：{{firstPaint}} ms</view>
+    <view>内存：{{memory}}</view>
+  </view>
+</view>

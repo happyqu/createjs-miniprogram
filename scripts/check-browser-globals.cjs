@@ -5,7 +5,6 @@ const forbiddenGlobals = [
   "window",
   "document",
   "navigator",
-  "performance",
   "Image",
   "WebGLTexture",
   "HTMLCanvasElement",
@@ -28,6 +27,11 @@ for (const file of [
       `${file} contains unsupported browser global: ${name}`,
     );
   }
+  assert.doesNotMatch(
+    source,
+    /typeof\s+performance\b|globalThis\.performance\b|\bperformance\.(?:now|memory)\b/,
+    `${file} contains unsupported browser performance access`,
+  );
 }
 
 console.log("No unsupported browser globals found in published bundles");

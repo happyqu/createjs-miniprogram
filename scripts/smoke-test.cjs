@@ -6,16 +6,17 @@ global.wx = {
       width,
       height,
       drawCalls: [],
+      contextCalls: { save: 0, restore: 0, transform: 0 },
       getContext() {
         return {
           drawImage(...args) {
             canvas.drawCalls.push(args);
           },
           clearRect() {},
-          save() {},
-          restore() {},
+          save() { canvas.contextCalls.save++; },
+          restore() { canvas.contextCalls.restore++; },
           setTransform() {},
-          transform() {},
+          transform() { canvas.contextCalls.transform++; },
           translate() {},
           beginPath() {},
           rect() {},
@@ -62,6 +63,26 @@ assert.equal(createjs.Touch.isSupported(), true);
 assert.equal(createjs.Filter.isValidImageSource(canvas), true);
 assert.doesNotThrow(() => new createjs.AlphaMapFilter(canvas));
 
+const pooledMatrix = createjs.Matrix2DPool.get().setValues(2, 0, 0, 2, 3, 4);
+createjs.Matrix2DPool.release(pooledMatrix);
+assert.ok(createjs.Matrix2DPool.size >= 1);
+assert.deepEqual(
+  createjs.Matrix2DPool.get().setValues(),
+  new createjs.Matrix2D(),
+);
+
+const transformProbe = new createjs.Bitmap(canvas);
+transformProbe.x = 7;
+assert.equal(transformProbe.getMatrix().tx, 7);
+transformProbe.x = 11;
+assert.equal(transformProbe.getMatrix().tx, 11);
+
+const spriteSheet = new createjs.SpriteSheet({ images: [canvas], frames: [[0, 0, 2, 3]] });
+assert.deepEqual(
+  { x: spriteSheet._frameCache[0].x, width: spriteSheet._frameCache[0].width },
+  { x: 0, width: 2 },
+);
+
 const stage = new createjs.Stage(canvas);
 assert.doesNotThrow(() => stage._handleMouseMove());
 createjs.Touch.enable(stage);
@@ -77,6 +98,29 @@ assert.strictEqual(canvas.drawCalls[0][0], stage.cacheCanvas);
 assert.deepEqual(canvas.drawCalls[0].slice(1), [0, 0, 2, 2]);
 stage.uncache();
 assert.equal(stage.cacheCanvas, null);
+
+const fastCanvas = createjs.createCanvas(100, 80);
+const fastStage = new createjs.Stage(fastCanvas);
+fastStage.tickOnUpdate = false;
+fastStage.addChild(new createjs.Bitmap(canvas).set({ x: 3, y: 4 }));
+createjs.performance.enable = true;
+fastStage.update();
+assert.equal(fastCanvas.contextCalls.save, 1);
+assert.equal(fastCanvas.contextCalls.restore, 1);
+assert.equal(fastCanvas.drawCalls.length, 1);
+assert.deepEqual(fastCanvas.drawCalls[0].slice(1), [3, 4]);
+assert.equal(createjs.performance.drawCount, 1);
+assert.equal(createjs.performance.displayObjectCount, 1);
+fastStage.addChild(new createjs.Bitmap(canvas).set({ rotation: 10 }));
+fastStage.update();
+assert.equal(createjs.performance.displayObjectCount, 2);
+assert.ok(fastCanvas.contextCalls.save >= 3);
+const directlyManaged = new createjs.Bitmap(canvas);
+directlyManaged.parent = fastStage;
+fastStage.children.push(directlyManaged);
+fastStage.update();
+assert.equal(createjs.performance.displayObjectCount, 3);
+createjs.performance.enable = false;
 
 const touchCalls = [];
 const touchStage = {

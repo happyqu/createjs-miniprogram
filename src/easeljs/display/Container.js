@@ -69,6 +69,11 @@ import createjs from "../../createjs/createjs";
 		 * @default null
 		 **/
 		this.children = [];
+
+		// A stable draw snapshot. It is rebuilt only when the display-list structure
+		// changes, avoiding a children.slice() allocation on every frame.
+		this._renderList = [];
+		this._renderListDirty = true;
 		
 		/**
 		 * Indicates whether the children of this container are independently enabled for mouse/pointer interaction.
@@ -160,12 +165,18 @@ import createjs from "../../createjs/createjs";
 	 **/
 	p.draw = function(ctx, ignoreCache) {
 		if (this.DisplayObject_draw(ctx, ignoreCache)) { return true; }
-		
-		// this ensures we don't have issues with display list changes that occur during a draw:
-		var list = this.children.slice();
+
+		// A cached snapshot preserves the old behaviour when the list is changed from
+		// inside draw(), while removing the per-frame array allocation.
+		var list = this._getRenderList();
 		for (var i=0,l=list.length; i<l; i++) {
 			var child = list[i];
 			if (!child.isVisible()) { continue; }
+			if (createjs.performance && createjs.performance.enable) { createjs.performance._drawCount++; }
+			if (!ignoreCache && child._canDrawBitmapFast && child._canDrawBitmapFast()) {
+				child._drawBitmapFast(ctx);
+				continue;
+			}
 			// draw the child:
 			ctx.save();
 			child.updateContext(ctx);
@@ -202,6 +213,7 @@ import createjs from "../../createjs/createjs";
 		par&&par._removeChildAt(createjs.indexOf(par.children, child), silent);
 		child.parent = this;
 		this.children.push(child);
+		this._invalidateRenderList();
 		if (!silent) { child.dispatchEvent("added"); }
 		return child;
 	};
@@ -242,6 +254,7 @@ import createjs from "../../createjs/createjs";
 		par&&par._removeChildAt(createjs.indexOf(par.children, child), silent);
 		child.parent = this;
 		this.children.splice(index, 0, child);
+		this._invalidateRenderList();
 		if (!silent) { child.dispatchEvent("added"); }
 		return child;
 	};
@@ -363,6 +376,7 @@ import createjs from "../../createjs/createjs";
 	 **/
 	p.sortChildren = function(sortFunction) {
 		this.children.sort(sortFunction);
+		this._invalidateRenderList();
 	};
 
 	/**
@@ -393,6 +407,7 @@ import createjs from "../../createjs/createjs";
 		if (!o1 || !o2) { return; }
 		kids[index1] = o2;
 		kids[index2] = o1;
+		this._invalidateRenderList();
 	};
 	
 	/**
@@ -413,6 +428,7 @@ import createjs from "../../createjs/createjs";
 		if (i==l) { return; } // TODO: throw error?
 		kids[index1] = child2;
 		kids[index2] = child1;
+		this._invalidateRenderList();
 	};
 	
 	/**
@@ -430,6 +446,7 @@ import createjs from "../../createjs/createjs";
 		if (i==l || i == index) { return; }
 		kids.splice(i,1);
 		kids.splice(index,0,child);
+		this._invalidateRenderList();
 	};
 
 	/**
@@ -590,8 +607,39 @@ import createjs from "../../createjs/createjs";
 		var child = this.children[index];
 		if (child) { child.parent = null; }
 		this.children.splice(index, 1);
+		this._invalidateRenderList();
 		if (!silent) { child.dispatchEvent("removed"); }
 		return true;
+	};
+
+	/** @private */
+	p._getRenderList = function() {
+		// `children` is public in EaselJS. Detect advanced direct edits as well as
+		// mutations made through the supported child-management APIs.
+		if (!this._renderListDirty) {
+			var children=this.children, list=this._renderList, l=children.length;
+			if (list.length !== l) { this._renderListDirty=true; }
+			else {
+				for (var i=0; i<l && children[i]===list[i]; i++) {}
+				if (i<l) { this._renderListDirty=true; }
+			}
+			if (this._renderListDirty) { this._invalidateRenderList(); }
+		}
+		if (this._renderListDirty) {
+			this._renderList = this.children.slice();
+			this._renderListDirty = false;
+		}
+		return this._renderList;
+	};
+
+	/** Marks this container and its ancestors' render caches as stale. @private */
+	p._invalidateRenderList = function() {
+		var o = this;
+		while (o) {
+			o._renderListDirty = true;
+			if (o._stageRenderListDirty !== undefined) { o._stageRenderListDirty = true; }
+			o = o.parent;
+		}
 	};
 
 	/**

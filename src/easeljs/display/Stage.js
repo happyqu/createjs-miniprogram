@@ -227,6 +227,12 @@ import createjs from "../../createjs/createjs";
 		 **/
 		this._prevStage = null;
 
+		// Flat structural list used for fast counting/inspection and invalidated by
+		// Container mutations. Drawing uses the cached per-container command lists
+		// so masks, alpha and composite semantics remain unchanged.
+		this._stageRenderList = [];
+		this._stageRenderListDirty = true;
+
 
 		// initialize:
 		// this.enableDOMEvents(true);
@@ -364,12 +370,14 @@ import createjs from "../../createjs/createjs";
 	 * @method update
 	 * @param {Object} [props] Props object to pass to `tick()`. Should usually be a {{#crossLink "Ticker"}}{{/crossLink}} event object, or similar object with a delta property.
 	 **/
-	var count=0;
 	p.update = function (props) {
 		if (!this.canvas) { return; }
-		// var startTime=(new Date()).getTime();
+		var perf=createjs.performance, measure=perf && perf.enable;
+		var updateStart=measure ? perf._now() : 0;
 		if (this.tickOnUpdate) { this.tick(props); }
+		var updateTime=measure ? perf._now()-updateStart : 0;
 		if (this.dispatchEvent("drawstart", false, true) === false) { return; }
+		var renderStart=measure ? perf._now() : 0;
 		createjs.DisplayObject._snapToPixelEnabled = this.snapToPixelEnabled;
 		var r = this.drawRect;
 		// var ctx =this.canvas.getContext("2d");
@@ -377,7 +385,7 @@ import createjs from "../../createjs/createjs";
 		ctx.setTransform(1, 0, 0, 1, 0, 0);
 		if (this.autoClear) {
 			if (r) { ctx.clearRect(r.x, r.y, r.width, r.height); }
-			else { ctx.clearRect(0, 0, 750,1220); }
+			else { ctx.clearRect(0, 0, this.canvas.width, this.canvas.height); }
 		}
 		// count++
 		// console.log(count)
@@ -392,8 +400,27 @@ import createjs from "../../createjs/createjs";
 		this.draw(ctx, false);
 		ctx.restore();
 		this.dispatchEvent("drawend");
-		// var endTime=(new Date()).getTime();
-		// console.log("drawend",endTime-startTime)
+		if (measure) {
+			if (this._stageRenderListDirty) { this._rebuildStageRenderList(); }
+			perf._snapshot(updateTime, perf._now()-renderStart, this._stageRenderList.length);
+		}
+	};
+
+	/** @private */
+	p._rebuildStageRenderList = function() {
+		var output=this._stageRenderList;
+		output.length=0;
+		function append(container) {
+			var children=container.children;
+			for (var i=0,l=children.length; i<l; i++) {
+				var child=children[i];
+				output.push(child);
+				if (child.children) { append(child); }
+			}
+		}
+		append(this);
+		this._stageRenderListDirty=false;
+		return output;
 	};
 
 	/**

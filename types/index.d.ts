@@ -4,6 +4,27 @@ interface CanvasLike {
   getContext(type: "2d"): unknown;
 }
 
+declare class Matrix2D {
+  constructor(a?: number, b?: number, c?: number, d?: number, tx?: number, ty?: number);
+  a: number;
+  b: number;
+  c: number;
+  d: number;
+  tx: number;
+  ty: number;
+  identity(): this;
+  setValues(a?: number, b?: number, c?: number, d?: number, tx?: number, ty?: number): this;
+  clone(): Matrix2D;
+}
+
+interface Matrix2DPool {
+  maxSize: number;
+  readonly size: number;
+  get(): Matrix2D;
+  release(matrix: Matrix2D): void;
+  clear(): void;
+}
+
 declare class Event {
   constructor(type: string, bubbles?: boolean, cancelable?: boolean);
   type: string;
@@ -51,6 +72,22 @@ declare class Stage extends Container {
   canvas: CanvasLike | unknown;
   update(event?: unknown): void;
   clear(): void;
+}
+
+interface PerformanceMetrics {
+  fps: number;
+  renderTime: number;
+  updateTime: number;
+  drawCount: number;
+  displayObjectCount: number;
+  memory: number | null;
+}
+
+interface CreateJSPerformance extends PerformanceMetrics {
+  enable: boolean;
+  log: boolean;
+  reset(): void;
+  getMetrics(): PerformanceMetrics;
 }
 
 declare class Graphics {
@@ -116,6 +153,8 @@ export interface CreateJS {
   Event: typeof Event;
   EventDispatcher: typeof EventDispatcher;
   DisplayObject: typeof DisplayObject;
+  Matrix2D: typeof Matrix2D;
+  Matrix2DPool: Matrix2DPool;
   Container: typeof Container;
   Stage: typeof Stage;
   Graphics: typeof Graphics;
@@ -124,6 +163,7 @@ export interface CreateJS {
   Text: typeof Text;
   ButtonHelper: typeof ButtonHelper;
   Touch: TouchAPI;
+  performance: CreateJSPerformance;
   Ticker: EventDispatcher & Record<string, unknown>;
   [key: string]: unknown;
 }

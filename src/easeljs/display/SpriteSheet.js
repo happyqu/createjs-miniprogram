@@ -243,6 +243,9 @@ import createjs from "../../createjs/createjs";
 		 **/
 		this._frames = null;
 
+		/** Flat immutable draw data used by Sprite's hot path. @private */
+		this._frameCache = null;
+
 		/**
 		 * @property _images
 		 * @protected
@@ -554,6 +557,7 @@ import createjs from "../../createjs/createjs";
 		}
 
 		// parse animations:
+		this._buildFrameCache();
 		this._animations = [];
 		if ((o = data.animations) != null) {
 			this._data = {};
@@ -629,7 +633,6 @@ import createjs from "../../createjs/createjs";
 	 * @protected
 	 **/
 	p._calculateFrames = function () {
-		console.log("_calculateFrames")
 		if (this._frames || this._frameWidth == 0) {
 			return;
 		}
@@ -669,6 +672,19 @@ import createjs from "../../createjs/createjs";
 				}
 			}
 		this._numFrames = frameCount;
+		this._buildFrameCache();
+	};
+
+	/** @private */
+	p._buildFrameCache = function() {
+		var frames=this._frames;
+		if (!frames) { this._frameCache=null; return; }
+		var cache=this._frameCache=[];
+		for (var i=0,l=frames.length; i<l; i++) {
+			var frame=frames[i], rect=frame.rect;
+			cache[i]={image:frame.image, x:rect.x, y:rect.y, width:rect.width, height:rect.height,
+				regX:frame.regX, regY:frame.regY};
+		}
 	};
 
 

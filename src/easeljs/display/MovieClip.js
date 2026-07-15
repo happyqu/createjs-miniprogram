@@ -281,6 +281,10 @@ import createjs from "../../createjs/createjs";
 		 * @private
 		 */
 		this._managed = {};
+
+		// Frame-specific child order is stable for Animate timelines. Cache that
+		// order so Container.draw can reuse it without allocating each frame.
+		this._cachedFrames = [];
 	}
 	var p = createjs.extend(MovieClip, createjs.Container);
 
@@ -685,6 +689,24 @@ import createjs from "../../createjs/createjs";
 				this.removeChildAt(i);
 				delete(this._managed[id]);
 			}
+		}
+		var cached=this._cachedFrames[this.currentFrame];
+		if (!cached || cached.children.length !== kids.length) {
+			cached=this._cachedFrames[this.currentFrame]={children:kids.slice()};
+		} else {
+			for (i=0; i<kids.length && cached.children[i]===kids[i]; i++) {}
+			if (i<kids.length) { cached.children=kids.slice(); }
+		}
+		this._renderList=cached.children;
+		this._renderListDirty=false;
+		this._invalidateStageRenderList();
+	};
+
+	p._invalidateStageRenderList = function() {
+		var o=this;
+		while (o) {
+			if (o._stageRenderListDirty !== undefined) { o._stageRenderListDirty=true; break; }
+			o=o.parent;
 		}
 	};
 

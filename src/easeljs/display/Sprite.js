@@ -228,13 +228,16 @@ import createjs from "../../createjs/createjs";
 			return true;
 		}
 		this._normalizeFrame();
-		var o = this.spriteSheet.getFrame(this._currentFrame | 0);
+		var sheet=this.spriteSheet;
+		var o = sheet._frameCache ? sheet._frameCache[this._currentFrame | 0] : sheet.getFrame(this._currentFrame | 0);
 		if (!o) {
 			return false;
 		}
-		var rect = o.rect;
-		if (rect.width && rect.height) {
-			  ctx.drawImage(o.image, rect.x, rect.y, rect.width, rect.height, -o.regX, -o.regY, rect.width, rect.height);
+		if (o.rect) {
+			var rect=o.rect;
+			if (rect.width && rect.height) { ctx.drawImage(o.image, rect.x, rect.y, rect.width, rect.height, -o.regX, -o.regY, rect.width, rect.height); }
+		} else if (o.width && o.height) {
+			ctx.drawImage(o.image, o.x, o.y, o.width, o.height, -o.regX, -o.regY, o.width, o.height);
 		}
 		return true;
 	};

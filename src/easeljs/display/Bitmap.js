@@ -123,7 +123,6 @@ import createjs from "../../createjs/createjs";
 	 * @return {Boolean} Boolean indicating whether the display object would be visible if drawn to a canvas
 	 **/
 	p.isVisible = function () {
-		return this.image;
 		var image = this.image;
 		var hasContent = this.cacheCanvas || (image && (image.naturalWidth || image.getContext || image.readyState >= 2));
 		return !!(this.visible && this.alpha > 0 && this.scaleX != 0 && this.scaleY != 0 && hasContent);
@@ -158,6 +157,32 @@ import createjs from "../../createjs/createjs";
 			ctx.drawImage(img, 0, 0);
 		}
 		return true;
+	};
+
+	/** @private */
+	p._canDrawBitmapFast = function() {
+		return this.draw === p.draw && this.visible && !this.bitmapCache && !this.mask && !this.shadow && !this.compositeOperation &&
+			!this.transformMatrix && this.alpha === 1 && this.rotation === 0 &&
+			this.skewX === 0 && this.skewY === 0 && this.scaleX === 1 && this.scaleY === 1 &&
+			this.regX === 0 && this.regY === 0 &&
+			!(createjs.DisplayObject._snapToPixelEnabled && this.snapToPixel);
+	};
+
+	/** Draws a translation-only bitmap without save/transform/restore. @private */
+	p._drawBitmapFast = function(ctx) {
+		var img = this.image, rect = this.sourceRect;
+		if (img && img.getImage) { img = img.getImage(); }
+		if (!img) { return; }
+		if (!rect) {
+			ctx.drawImage(img, this.x, this.y);
+			return;
+		}
+		var x1=rect.x, y1=rect.y, x2=x1+rect.width, y2=y1+rect.height, x=this.x, y=this.y, w=img.width, h=img.height;
+		if (x1 < 0) { x -= x1; x1 = 0; }
+		if (x2 > w) { x2 = w; }
+		if (y1 < 0) { y -= y1; y1 = 0; }
+		if (y2 > h) { y2 = h; }
+		ctx.drawImage(img, x1, y1, x2-x1, y2-y1, x, y, x2-x1, y2-y1);
 	};
 
 	//Note, the doc sections below document using the specified APIs (from DisplayObject)  from

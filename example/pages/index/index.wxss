@@ -111,6 +111,14 @@ page {
   text-align: center;
 }
 
+.benchmark-link {
+  width: 690rpx;
+  margin: 22rpx auto 0;
+  color: #62d7ff;
+  font-size: 25rpx;
+  text-align: center;
+}
+
 .stats {
   width: 690rpx;
   margin: 28rpx auto 0;

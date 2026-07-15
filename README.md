@@ -78,6 +78,20 @@ import "@happyqu/createjs-miniprogram/tweenjs";
 createjs.Tween.get(target).to({ x: 100 }, 500, createjs.Ease.quadOut);
 ```
 
+### 性能监控
+
+Phase 1 提供可选的运行时指标，默认关闭且关闭时不进入计时代码：
+
+```js
+createjs.performance.enable = true;
+
+stage.update(event);
+console.log(createjs.performance.getMetrics());
+// { fps, renderTime, updateTime, drawCount, displayObjectCount, memory }
+```
+
+微信开发者工具中的 `pages/benchmark/benchmark` 页面可运行 1000 Bitmap、100 个 10 帧 MovieClip 和复杂混合场景测试。
+
 ## 开发与发布
 
 ```bash
