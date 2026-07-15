@@ -1,0 +1,32 @@
+<view class="page">
+  <view class="heading">CreateJS Performance Benchmark</view>
+  <view class="version">{{runtimeMode}}</view>
+
+  <view class="controls">
+    <button size="mini" data-test="static" bindtap="runTest">1000 静态</button>
+    <button size="mini" data-test="moving" bindtap="runTest">100 移动</button>
+    <button size="mini" data-test="movieclip" bindtap="runTest">100 MovieClip</button>
+  </view>
+
+  <canvas id="benchmarkCanvas" type="2d" class="canvas"></canvas>
+
+  <view class="metrics">
+    <view class="scene">{{testName}}</view>
+    <view class="grid">
+      <view><text>FPS</text><strong>{{fps}}</strong></view>
+      <view><text>平均帧耗时</text><strong>{{averageTime}} ms</strong></view>
+      <view><text>P95 帧耗时</text><strong>{{p95Time}} ms</strong></view>
+      <view><text>最大帧耗时</text><strong>{{maxTime}} ms</strong></view>
+      <view><text>首帧耗时</text><strong>{{firstPaint}} ms</strong></view>
+      <view><text>显示对象</text><strong>{{objectCount}}</strong></view>
+      <view><text>Draw Calls</text><strong>{{drawCalls}}</strong></view>
+      <view><text>脏矩形</text><strong>{{dirtyRect}}</strong></view>
+      <view><text>自动缓存</text><strong>{{cacheObject}}</strong></view>
+      <view><text>跳过对象</text><strong>{{skippedObjects}}</strong></view>
+    </view>
+  </view>
+
+  <button class="copy-button" bindtap="copyResults">复制当前测试结果</button>
+
+  <view class="hint">每个场景至少运行 10 秒；在相同手机、相同基础库和 Release 构建下记录结果。</view>
+</view>

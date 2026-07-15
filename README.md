@@ -80,6 +80,22 @@ createjs.Tween.get(target).to({ x: 100 }, 500, createjs.Ease.quadOut);
 
 ## 开发与发布
 
+### 性能基准
+
+仓库中的 `happyqu-createjs-miniprogram-1.0.1.tgz` 作为未优化基线。以下命令会构建当前源码，并用相同场景对比 v1.0.1：
+
+```bash
+npm run benchmark:performance
+```
+
+测试场景与优化版完全一致：1000 静态 Bitmap、100 移动 Bitmap，以及 100 个 10 帧 MovieClip。命令行结果包含 JS 耗时、主 Canvas DrawCall 和清屏面积；使用 `--json` 可输出完整原始指标：
+
+```bash
+node scripts/performance-compare.cjs --json
+```
+
+真机测试请打开示例中的 `pages/benchmark/benchmark`，在相同手机、微信基础库和 Release 构建下让每个场景运行至少 10 秒。优化版若提供 `createjs.performance`，页面还会展示脏矩形、自动缓存和跳过对象数量。
+
 ```bash
 npm install
 npm test

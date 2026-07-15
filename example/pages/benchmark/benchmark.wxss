@@ -1,0 +1,16 @@
+page { background: #050b14; color: #e8f7ff; }
+.page { min-height: 100vh; padding: 34rpx 30rpx 48rpx; box-sizing: border-box; }
+.heading { font-size: 38rpx; font-weight: 750; }
+.version { margin: 10rpx 0 24rpx; color: #68dcff; font-size: 24rpx; }
+.controls { display: flex; flex-wrap: wrap; gap: 12rpx; margin-bottom: 22rpx; }
+.controls button { margin: 0; color: #06111f; background: #68dcff; }
+.canvas { width: 690rpx; height: 700rpx; display: block; border: 1rpx solid #244b68; background: #02060b; }
+.metrics { margin-top: 22rpx; padding: 24rpx; border-radius: 18rpx; background: #0d1d30; }
+.scene { margin-bottom: 20rpx; color: #ffffff; font-size: 28rpx; font-weight: 700; }
+.grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18rpx 24rpx; }
+.grid view { display: flex; flex-direction: column; }
+.grid text { color: #718ba6; font-size: 21rpx; }
+.grid strong { margin-top: 5rpx; color: #dff8ff; font: 700 27rpx monospace; }
+.copy-button { margin-top: 20rpx; color: #06111f; font-size: 25rpx; background: #68dcff; }
+.copy-button::after { border: 0; }
+.hint { margin-top: 20rpx; color: #617892; font-size: 21rpx; line-height: 1.6; }
