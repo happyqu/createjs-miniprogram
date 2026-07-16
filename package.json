@@ -1,6 +1,6 @@
 {
   "name": "@happyqu/createjs-miniprogram",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "CreateJS (EaselJS and TweenJS) adapted for WeChat Mini Programs",
   "keywords": [
     "createjs",
