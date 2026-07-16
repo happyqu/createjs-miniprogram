@@ -3,10 +3,14 @@ const { readFileSync, readdirSync } = require("node:fs");
 
 const enforce = process.argv.includes("--check");
 const limits = {
-  "index.js": 115000,
-  "index.mjs": 115000,
-  "core.js": 90000,
-  "core.mjs": 90000,
+  "index.js": 110000,
+  "index.mjs": 110000,
+  "lite.js": 90000,
+  "lite.mjs": 90000,
+  "lite-animation.js": 32000,
+  "lite-animation.mjs": 32000,
+  "lite-filters.js": 14000,
+  "lite-filters.mjs": 14000,
 };
 
 const rows = readdirSync("dist")

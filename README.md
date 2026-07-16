@@ -1,8 +1,6 @@
 # @happyqu/createjs-miniprogram
 
-适配微信小程序 Canvas 的 CreateJS npm 包，包含常用的 EaselJS 与 TweenJS API。
-
-源码中的 `src/createjs/createjs.js` 只负责创建共享的 `createjs` 对象；EaselJS 构建入口是 `src/easeljs/package.js`，TweenJS 构建入口是 `src/tweenjs/package.js`。
+适配微信小程序 Canvas2D 的 CreateJS npm 包，提供完整入口和更易使用的 lite 组合入口。
 
 ## 安装
 
@@ -12,10 +10,83 @@ npm install @happyqu/createjs-miniprogram
 
 安装后，在微信开发者工具中执行“工具 → 构建 npm”。
 
-## 使用
+## 选择入口
+
+| 使用场景 | 加载方式 | CommonJS 体积 |
+| --- | --- | ---: |
+| 需要全部 EaselJS API | 默认入口 | 约 106.1KB |
+| 常规 Canvas 项目 | `/lite` | 约 82.5KB |
+| lite 项目需要动画 | `/lite` + `/lite/animation` | 动画扩展约 29.2KB |
+| lite 项目需要滤镜 | `/lite` + `/lite/filters` | 滤镜扩展约 12.8KB |
+
+### 完整入口
+
+适合旧项目或需要 SpriteSheetBuilder、ButtonHelper 等完整能力的项目：
 
 ```js
-import createjs from "@happyqu/createjs-miniprogram";
+const createjs = require("@happyqu/createjs-miniprogram");
+```
+
+需要 TweenJS 时加载对应的完整入口扩展：
+
+```js
+require("@happyqu/createjs-miniprogram/tweenjs");
+```
+
+### Lite 入口（推荐）
+
+lite 已经包含日常使用的显示、文字、精灵、触摸和性能优化能力，不需要再分别加载 text 或 sprite：
+
+```js
+const createjs = require("@happyqu/createjs-miniprogram/lite");
+```
+
+包含：
+
+- Stage、Container、DisplayObject
+- Graphics、Shape、Bitmap
+- Text、BitmapText
+- Sprite、SpriteSheet
+- Event、Ticker、Touch
+- BitmapCache、Filter 基类
+- 脏矩形、自动缓存、Bitmap 批处理和性能指标
+
+不包含 MovieClip、Tween、具体滤镜、SpriteSheetBuilder 和 ButtonHelper。
+
+需要动画时只增加一行：
+
+```js
+const createjs = require("@happyqu/createjs-miniprogram/lite");
+require("@happyqu/createjs-miniprogram/lite/animation");
+
+createjs.Tween.get(target).to({ x: 100 }, 500, createjs.Ease.quadOut);
+```
+
+`/lite/animation` 一次注册 Tween、Timeline、Ease、Tween 插件和 MovieClip。
+
+需要滤镜时：
+
+```js
+const createjs = require("@happyqu/createjs-miniprogram/lite");
+require("@happyqu/createjs-miniprogram/lite/filters");
+
+displayObject.filters = [new createjs.BlurFilter(4, 4, 1)];
+```
+
+`/lite/filters` 一次注册全部 Canvas2D 滤镜。
+
+ESM 写法：
+
+```js
+import createjs from "@happyqu/createjs-miniprogram/lite";
+import "@happyqu/createjs-miniprogram/lite/animation";
+import "@happyqu/createjs-miniprogram/lite/filters";
+```
+
+## Canvas 使用
+
+```js
+const createjs = require("@happyqu/createjs-miniprogram/lite");
 
 Page({
   onReady() {
@@ -24,9 +95,13 @@ Page({
       .fields({ node: true, size: true })
       .exec(([result]) => {
         const canvas = result.node;
-        createjs.canvas = canvas;
+        const dpr = wx.getWindowInfo ? wx.getWindowInfo().pixelRatio : 1;
+        canvas.width = Math.round(result.width * dpr);
+        canvas.height = Math.round(result.height * dpr);
 
         const stage = new createjs.Stage(canvas);
+        stage.scaleX = stage.scaleY = dpr;
+
         const shape = new createjs.Shape();
         shape.graphics.beginFill("#07c160").drawCircle(50, 50, 30);
         stage.addChild(shape);
@@ -36,46 +111,7 @@ Page({
 });
 ```
 
-CommonJS 也可直接使用：
-
-```js
-const createjs = require("@happyqu/createjs-miniprogram");
-```
-
-### 按需加载（推荐）
-
-完整入口保持兼容，包含全部 EaselJS API。对小程序包体积敏感时，可以改用核心入口：
-
-```js
-const createjs = require("@happyqu/createjs-miniprogram/core");
-```
-
-核心入口包含 Stage、Container、DisplayObject、Graphics、Shape、Bitmap、Sprite、
-SpriteSheet、Ticker、Touch、缓存和 Phase 1/2 性能优化等常用能力。当前 CommonJS
-构建约 76.8KB，比完整入口约 110.8KB 减少约 30%。其余能力按业务需要加载：
-
-```js
-require("@happyqu/createjs-miniprogram/text");      // Text、BitmapText
-require("@happyqu/createjs-miniprogram/movieclip"); // MovieClip
-require("@happyqu/createjs-miniprogram/filters");   // Canvas 2D 滤镜
-require("@happyqu/createjs-miniprogram/builder");   // SpriteSheet 工具
-require("@happyqu/createjs-miniprogram/ui");        // ButtonHelper
-```
-
-扩展会注册到同一个核心 `createjs` 对象，不会改变原有调用方式：
-
-```js
-const createjs = require("@happyqu/createjs-miniprogram/core");
-require("@happyqu/createjs-miniprogram/text");
-
-const label = new createjs.Text("Hello", "20px sans-serif", "#fff");
-```
-
-只应在 `core` 入口上组合这些扩展；使用完整入口时不需要重复加载。
-
-### 触摸事件
-
-小程序 Canvas 事件需要转发给 `Touch.handleEvent()`：
+## 触摸事件
 
 ```xml
 <canvas
@@ -88,10 +124,7 @@ const label = new createjs.Text("Hello", "20px sans-serif", "#fff");
 ```
 
 ```js
-createjs.Touch.enable(stage, {
-  pixelRatio: dpr,
-  allowDefault: true,
-});
+createjs.Touch.enable(stage, { pixelRatio: dpr, allowDefault: true });
 
 Page({
   canvasEvent(event) {
@@ -100,50 +133,20 @@ Page({
 });
 ```
 
-TweenJS 是主入口的扩展包。导入后会向同一个 `createjs` 对象注册 Tween API，并复用 `createjs.Ticker`：
-
-```js
-import createjs from "@happyqu/createjs-miniprogram";
-import "@happyqu/createjs-miniprogram/tweenjs";
-
-createjs.Tween.get(target).to({ x: 100 }, 500, createjs.Ease.quadOut);
-```
-
-### 性能监控
-
-运行时指标默认关闭，打开后可同时查看 Phase 1 与 Phase 2 数据：
-
-```js
-createjs.performance.enable = true;
-
-stage.update(event);
-console.log(createjs.performance.getMetrics());
-// 还包括 dirtyRect、fullRender、cacheObject、drawCalls、
-// skippedObjects 和 bitmapBatches
-```
-
-Phase 2 渲染优化默认开启，可随时完整回退：
-
-```js
-createjs.performance.phase2 = false;
-```
-
-开启 `createjs.performance.debug = true` 会逐帧输出脏矩形、全量渲染、自动缓存、DrawCall 与跳过对象等信息。微信开发者工具中的 `pages/benchmark/benchmark` 页面可运行 1000 静态 Bitmap、100 移动对象和 100 个 10 帧 MovieClip 测试。
-
-## 开发与发布
+## 开发与验证
 
 ```bash
 npm install
 npm test
 npm run size
-npm publish
 ```
 
-`npm test` 会生成 ESM、CommonJS 和类型声明，验证完整入口、核心入口及扩展共享实例，并检查体积上限。`npm run size` 可查看每个构建文件的原始与 gzip 体积。`prepublishOnly` 会在发布前再次测试并检查最终包内容。
+`npm test` 会验证完整入口、lite 入口、动画与滤镜共享实例、CommonJS/ESM、小程序全局变量、Canvas2D 滤镜像素输出和体积上限。
+
+详细的构建结构、示例 libs 用法及常见问题见[构建体积与使用指南](doc/bundle-size-and-usage.md)。
 
 ## 兼容性
 
 - 运行环境需要微信小程序提供 `wx.createOffscreenCanvas`。
-- 根入口包含 2D Canvas 版本的 EaselJS，不包含 TweenJS，也未启用依赖 DOM/WebGL 的模块。
-- TweenJS 及其插件通过 `@happyqu/createjs-miniprogram/tweenjs` 扩展主入口，共用同一个 `createjs` 对象和 `Ticker`；插件需要按需调用其 `install()` 方法。
-- `createjs.globalDispatcher` 是导入后即可使用的包级事件总线。
+- 仅支持 Canvas2D，不包含 DOM 和 StageGL/WebGL 实现。
+- 默认完整入口使用 `/tweenjs`；lite 入口使用 `/lite/animation`，两组入口不要混用。

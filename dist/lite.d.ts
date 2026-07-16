@@ -56,7 +56,36 @@ export class Bitmap extends DisplayObject {
   image: unknown;
 }
 
-export interface CreateJSCore {
+export class Text extends DisplayObject {
+  constructor(text?: string, font?: string, color?: string);
+  text: string;
+  font: string;
+  color: string;
+  lineHeight: number;
+  lineWidth: number | null;
+}
+
+export class SpriteSheet {
+  constructor(data: Record<string, unknown>);
+  complete: boolean;
+  framerate: number;
+  getFrame(frameIndex: number): object | null;
+  getAnimation(name: string): object | null;
+}
+
+export class Sprite extends DisplayObject {
+  constructor(spriteSheet: SpriteSheet, frameOrAnimation?: number | string);
+  gotoAndPlay(frameOrAnimation: number | string): void;
+  gotoAndStop(frameOrAnimation: number | string): void;
+}
+
+export class BitmapText extends Container {
+  constructor(text?: string, spriteSheet?: SpriteSheet);
+  text: string;
+  spriteSheet: SpriteSheet;
+}
+
+export interface CreateJSLite {
   createCanvas(width?: number, height?: number): CanvasLike;
   globalDispatcher: EventDispatcher;
   canvas: CanvasLike | null;
@@ -67,11 +96,15 @@ export interface CreateJSCore {
   Graphics: typeof Graphics;
   Shape: typeof Shape;
   Bitmap: typeof Bitmap;
+  Text: typeof Text;
+  SpriteSheet: typeof SpriteSheet;
+  Sprite: typeof Sprite;
+  BitmapText: typeof BitmapText;
   Touch: Record<string, Function>;
   performance: Record<string, unknown>;
   Ticker: EventDispatcher & Record<string, unknown>;
   [key: string]: unknown;
 }
 
-declare const createjs: CreateJSCore;
+declare const createjs: CreateJSLite;
 export default createjs;

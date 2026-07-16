@@ -1,6 +1,5 @@
 const createjs = require("../../libs/createjs-miniprogram/easeljs.js");
-require("../../libs/createjs-miniprogram/text.js");
-require("../../libs/createjs-miniprogram/tweenjs.js");
+require("../../libs/createjs-miniprogram/animation.js");
 
 Page({
   data: {

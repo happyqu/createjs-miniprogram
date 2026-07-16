@@ -38,46 +38,29 @@
       "require": "./dist/tweenjs.js",
       "default": "./dist/tweenjs.mjs"
     },
-    "./core": {
-      "types": "./dist/core.d.ts",
-      "import": "./dist/core.mjs",
-      "require": "./dist/core.js",
-      "default": "./dist/core.mjs"
+    "./lite": {
+      "types": "./dist/lite.d.ts",
+      "import": "./dist/lite.mjs",
+      "require": "./dist/lite.js",
+      "default": "./dist/lite.mjs"
     },
-    "./text": {
-      "types": "./dist/text.d.ts",
-      "import": "./dist/text.mjs",
-      "require": "./dist/text.js",
-      "default": "./dist/text.mjs"
+    "./lite/animation": {
+      "types": "./dist/lite-animation.d.ts",
+      "import": "./dist/lite-animation.mjs",
+      "require": "./dist/lite-animation.js",
+      "default": "./dist/lite-animation.mjs"
     },
-    "./movieclip": {
-      "types": "./dist/movieclip.d.ts",
-      "import": "./dist/movieclip.mjs",
-      "require": "./dist/movieclip.js",
-      "default": "./dist/movieclip.mjs"
-    },
-    "./filters": {
-      "types": "./dist/filters.d.ts",
-      "import": "./dist/filters.mjs",
-      "require": "./dist/filters.js",
-      "default": "./dist/filters.mjs"
-    },
-    "./builder": {
-      "types": "./dist/builder.d.ts",
-      "import": "./dist/builder.mjs",
-      "require": "./dist/builder.js",
-      "default": "./dist/builder.mjs"
-    },
-    "./ui": {
-      "types": "./dist/ui.d.ts",
-      "import": "./dist/ui.mjs",
-      "require": "./dist/ui.js",
-      "default": "./dist/ui.mjs"
+    "./lite/filters": {
+      "types": "./dist/lite-filters.d.ts",
+      "import": "./dist/lite-filters.mjs",
+      "require": "./dist/lite-filters.js",
+      "default": "./dist/lite-filters.mjs"
     },
     "./package.json": "./package.json"
   },
   "files": [
     "dist",
+    "doc/bundle-size-and-usage.md",
     "LICENSE",
     "README.md"
   ],
@@ -91,7 +74,7 @@
     "build": "node scripts/build.cjs",
     "size": "node scripts/size-report.cjs",
     "check:size": "node scripts/size-report.cjs --check",
-    "test": "npm run build && node scripts/check-browser-globals.cjs && node scripts/smoke-test.cjs && node scripts/core-smoke-test.cjs && npm run check:size",
+    "test": "npm run build && node scripts/check-browser-globals.cjs && node scripts/smoke-test.cjs && node scripts/lite-smoke-test.cjs && node scripts/filter-regression-test.cjs && npm run check:size",
     "prepublishOnly": "npm test && npm pack --dry-run"
   },
   "devDependencies": {

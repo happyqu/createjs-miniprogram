@@ -1,9 +1,9 @@
-import createjs from "@happyqu/createjs-miniprogram/core";
+import createjs from "@happyqu/createjs-miniprogram/lite";
 
 type FilterConstructor = new (...args: any[]) => object;
 
-declare module "@happyqu/createjs-miniprogram/core" {
-  interface CreateJSCore {
+declare module "@happyqu/createjs-miniprogram/lite" {
+  interface CreateJSLite {
     BlurFilter: FilterConstructor;
     AlphaMapFilter: FilterConstructor;
     AlphaMaskFilter: FilterConstructor;

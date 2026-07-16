@@ -11,11 +11,11 @@ const common = {
   logLevel: "info",
 };
 
-const sharedCorePlugin = {
-  name: "shared-createjs-core",
+const sharedLitePlugin = {
+  name: "shared-createjs-lite",
   setup(build) {
     build.onResolve({ filter: /(?:^|\/)createjs(?:\.js)?$/ }, () => ({
-      path: "@happyqu/createjs-miniprogram/core",
+      path: "@happyqu/createjs-miniprogram/lite",
       external: true,
     }));
   },
@@ -36,13 +36,13 @@ async function main() {
   rmSync("dist", { recursive: true, force: true });
 
   await bundle("src/easeljs/package.js", "index");
-  await bundle("src/easeljs/core.js", "core");
-
-  for (const name of ["text", "movieclip", "filters", "builder", "ui"]) {
-    await bundle(`src/easeljs/addons/${name}.js`, name, {
-      plugins: [sharedCorePlugin],
-    });
-  }
+  await bundle("src/easeljs/lite.js", "lite");
+  await bundle("src/easeljs/addons/lite-animation.js", "lite-animation", {
+    plugins: [sharedLitePlugin],
+  });
+  await bundle("src/easeljs/addons/lite-filters.js", "lite-filters", {
+    plugins: [sharedLitePlugin],
+  });
 
   await bundle("src/tweenjs/package.js", "tweenjs", {
     external: ["@happyqu/createjs-miniprogram"],

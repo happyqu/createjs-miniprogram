@@ -1,17 +1,18 @@
-const { copyFileSync, mkdirSync, readFileSync, writeFileSync } = require("node:fs");
+const { copyFileSync, mkdirSync, readFileSync, rmSync, writeFileSync } = require("node:fs");
 
 const target = "example/libs/createjs-miniprogram";
+rmSync(target, { recursive: true, force: true });
 mkdirSync(target, { recursive: true });
-copyFileSync("dist/core.js", `${target}/easeljs.js`);
-for (const name of ["text", "movieclip"]) {
-  const addon = readFileSync(`dist/${name}.js`, "utf8").replace(
-    'require("@happyqu/createjs-miniprogram/core")',
-    'require("./easeljs.js")',
-  );
-  writeFileSync(`${target}/${name}.js`, addon);
-}
-const tweenjs = readFileSync("dist/tweenjs.js", "utf8").replace(
-  'require("@happyqu/createjs-miniprogram")',
+copyFileSync("dist/lite.js", `${target}/easeljs.js`);
+const animation = readFileSync("dist/lite-animation.js", "utf8").replaceAll(
+  'require("@happyqu/createjs-miniprogram/lite")',
   'require("./easeljs.js")',
 );
-writeFileSync(`${target}/tweenjs.js`, tweenjs);
+writeFileSync(`${target}/animation.js`, animation);
+
+for (const name of ["animation"]) {
+  const source = readFileSync(`${target}/${name}.js`, "utf8");
+  if (source.includes("@happyqu/createjs-miniprogram")) {
+    throw new Error(`${target}/${name}.js contains an unresolved package import`);
+  }
+}

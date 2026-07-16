@@ -98,51 +98,11 @@ import createjs from "../../createjs/createjs";
 		 **/
 		this._mapCtx = null;
 
-		/**
-		 * @property _mapTexture
-		 * @protected
-		 * @type WebGLTexture
-		 */
-		this._mapTexture = null;
-
-		this.FRAG_SHADER_BODY = (
-			"uniform sampler2D uAlphaSampler;" +
-
-			"void main(void) {" +
-			"vec4 color = texture2D(uSampler, vTextureCoord);" +
-			"vec4 alphaMap = texture2D(uAlphaSampler, vTextureCoord);" +
-
-			// some image formats can have transparent white rgba(1,1,1, 0) when put on the GPU, this means we need a slight tweak
-			// using ceil ensure that the colour will be used so long as it exists but pure transparency will be treated black
-			"float newAlpha = alphaMap.r * ceil(alphaMap.a);" +
-			"gl_FragColor = vec4(clamp(color.rgb/color.a, 0.0, 1.0) * newAlpha, newAlpha);" +
-			"}"
-		);
-
 	}
 	var p = createjs.extend(AlphaMapFilter, createjs.Filter);
 
 	// TODO: deprecated
 	// p.initialize = function() {}; // searchable for devs wondering where it is. REMOVED. See docs for details.
-
-	// Docced in superclass
-	p.shaderParamSetup = function (gl, stage, shaderProgram) {
-		if (this._mapTexture === null) {
-			this._mapTexture = gl.createTexture();
-		}
-
-		gl.activeTexture(gl.TEXTURE1);
-		gl.bindTexture(gl.TEXTURE_2D, this._mapTexture);
-		stage.setTextureParams(gl);
-		if (this.alphaMap !== this._mapTexture) {
-			gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, this.alphaMap);
-		}
-
-		gl.uniform1i(
-			gl.getUniformLocation(shaderProgram, "uAlphaSampler"),
-			1
-		);
-	};
 
 	// public methods:
 	// Docced in superclass
@@ -191,9 +151,6 @@ import createjs from "../../createjs/createjs";
 				samplePixelStart = (sampleRowOffset + ((j * widthRatio) | 0)) * 4;
 
 				// modify the pixels
-				outArray[pixelStart] = outArray[pixelStart];
-				outArray[pixelStart + 1] = outArray[pixelStart + 1];
-				outArray[pixelStart + 2] = outArray[pixelStart + 2];
 				outArray[pixelStart + 3] = sampleArray[samplePixelStart];
 			}
 		}

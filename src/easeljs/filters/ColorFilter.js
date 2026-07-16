@@ -130,19 +130,6 @@ import createjs from "../../createjs/createjs";
 		 **/
 		this.alphaOffset = alphaOffset || 0;
 
-		this.FRAG_SHADER_BODY = (
-			"uniform vec4 uColorMultiplier;" +
-			"uniform vec4 uColorOffset;" +
-
-			"void main(void) {" +
-			"vec4 color = texture2D(uSampler, vTextureCoord);" +
-			"color = clamp(vec4(0.0), vec4(1.0), vec4(vec3(color.rgb / color.a), color.a));" +
-			"color = clamp(vec4(0.0), vec4(1.0), color * uColorMultiplier + uColorOffset);" +
-
-			"gl_FragColor = vec4(color.rgb * color.a, color.a);" +
-			"}"
-		);
-
 	}
 	var p = createjs.extend(ColorFilter, createjs.Filter);
 
@@ -151,19 +138,6 @@ import createjs from "../../createjs/createjs";
 
 
 	// public methods:
-	// Docced in superclass
-	p.shaderParamSetup = function (gl, stage, shaderProgram) {
-		gl.uniform4f(
-			gl.getUniformLocation(shaderProgram, "uColorMultiplier"),
-			this.redMultiplier, this.greenMultiplier, this.blueMultiplier, this.alphaMultiplier
-		);
-
-		gl.uniform4f(
-			gl.getUniformLocation(shaderProgram, "uColorOffset"),
-			this.redOffset / 255, this.greenOffset / 255, this.blueOffset / 255, this.alphaOffset / 255
-		);
-	};
-
 	// Docced in superclass
 	p.toString = function () {
 		return "[ColorFilter]";
