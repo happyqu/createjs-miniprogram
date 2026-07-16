@@ -38,6 +38,42 @@
       "require": "./dist/tweenjs.js",
       "default": "./dist/tweenjs.mjs"
     },
+    "./core": {
+      "types": "./dist/core.d.ts",
+      "import": "./dist/core.mjs",
+      "require": "./dist/core.js",
+      "default": "./dist/core.mjs"
+    },
+    "./text": {
+      "types": "./dist/text.d.ts",
+      "import": "./dist/text.mjs",
+      "require": "./dist/text.js",
+      "default": "./dist/text.mjs"
+    },
+    "./movieclip": {
+      "types": "./dist/movieclip.d.ts",
+      "import": "./dist/movieclip.mjs",
+      "require": "./dist/movieclip.js",
+      "default": "./dist/movieclip.mjs"
+    },
+    "./filters": {
+      "types": "./dist/filters.d.ts",
+      "import": "./dist/filters.mjs",
+      "require": "./dist/filters.js",
+      "default": "./dist/filters.mjs"
+    },
+    "./builder": {
+      "types": "./dist/builder.d.ts",
+      "import": "./dist/builder.mjs",
+      "require": "./dist/builder.js",
+      "default": "./dist/builder.mjs"
+    },
+    "./ui": {
+      "types": "./dist/ui.d.ts",
+      "import": "./dist/ui.mjs",
+      "require": "./dist/ui.js",
+      "default": "./dist/ui.mjs"
+    },
     "./package.json": "./package.json"
   },
   "files": [
@@ -52,8 +88,10 @@
   "sideEffects": true,
   "scripts": {
     "clean": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\"",
-    "build": "npm run clean && esbuild src/easeljs/package.js --bundle --format=esm --platform=neutral --target=es2017 --minify --legal-comments=none --outfile=dist/index.mjs && esbuild src/easeljs/package.js --bundle --format=cjs --platform=neutral --target=es2017 --minify --legal-comments=none --footer:js=module.exports=module.exports.default --outfile=dist/index.js && esbuild src/tweenjs/package.js --bundle --external:@happyqu/createjs-miniprogram --format=esm --platform=neutral --target=es2017 --minify --legal-comments=none --outfile=dist/tweenjs.mjs && esbuild src/tweenjs/package.js --bundle --external:@happyqu/createjs-miniprogram --format=cjs --platform=neutral --target=es2017 --minify --legal-comments=none --footer:js=module.exports=module.exports.default --outfile=dist/tweenjs.js && node scripts/copy-types.cjs && node scripts/sync-example.cjs",
-    "test": "npm run build && node scripts/check-browser-globals.cjs && node scripts/smoke-test.cjs",
+    "build": "node scripts/build.cjs",
+    "size": "node scripts/size-report.cjs",
+    "check:size": "node scripts/size-report.cjs --check",
+    "test": "npm run build && node scripts/check-browser-globals.cjs && node scripts/smoke-test.cjs && node scripts/core-smoke-test.cjs && npm run check:size",
     "prepublishOnly": "npm test && npm pack --dry-run"
   },
   "devDependencies": {

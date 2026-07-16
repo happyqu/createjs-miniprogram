@@ -1,5 +1,5 @@
 const assert = require("node:assert/strict");
-const { readFileSync } = require("node:fs");
+const { readFileSync, readdirSync } = require("node:fs");
 
 const forbiddenGlobals = [
   "window",
@@ -13,12 +13,9 @@ const forbiddenGlobals = [
   "HTMLVideoElement",
 ];
 
-for (const file of [
-  "dist/index.mjs",
-  "dist/index.js",
-  "dist/tweenjs.mjs",
-  "dist/tweenjs.js",
-]) {
+for (const file of readdirSync("dist")
+  .filter((name) => /\.(?:m?js)$/.test(name))
+  .map((name) => `dist/${name}`)) {
   const source = readFileSync(file, "utf8");
   for (const name of forbiddenGlobals) {
     assert.doesNotMatch(

@@ -42,6 +42,37 @@ CommonJS 也可直接使用：
 const createjs = require("@happyqu/createjs-miniprogram");
 ```
 
+### 按需加载（推荐）
+
+完整入口保持兼容，包含全部 EaselJS API。对小程序包体积敏感时，可以改用核心入口：
+
+```js
+const createjs = require("@happyqu/createjs-miniprogram/core");
+```
+
+核心入口包含 Stage、Container、DisplayObject、Graphics、Shape、Bitmap、Sprite、
+SpriteSheet、Ticker、Touch、缓存和 Phase 1/2 性能优化等常用能力。当前 CommonJS
+构建约 76.8KB，比完整入口约 110.8KB 减少约 30%。其余能力按业务需要加载：
+
+```js
+require("@happyqu/createjs-miniprogram/text");      // Text、BitmapText
+require("@happyqu/createjs-miniprogram/movieclip"); // MovieClip
+require("@happyqu/createjs-miniprogram/filters");   // Canvas 2D 滤镜
+require("@happyqu/createjs-miniprogram/builder");   // SpriteSheet 工具
+require("@happyqu/createjs-miniprogram/ui");        // ButtonHelper
+```
+
+扩展会注册到同一个核心 `createjs` 对象，不会改变原有调用方式：
+
+```js
+const createjs = require("@happyqu/createjs-miniprogram/core");
+require("@happyqu/createjs-miniprogram/text");
+
+const label = new createjs.Text("Hello", "20px sans-serif", "#fff");
+```
+
+只应在 `core` 入口上组合这些扩展；使用完整入口时不需要重复加载。
+
 ### 触摸事件
 
 小程序 Canvas 事件需要转发给 `Touch.handleEvent()`：
@@ -104,10 +135,11 @@ createjs.performance.phase2 = false;
 ```bash
 npm install
 npm test
+npm run size
 npm publish
 ```
 
-`npm test` 会生成 ESM、CommonJS 和类型声明，并运行最小导入测试。`prepublishOnly` 会在发布前再次测试并检查最终包内容。
+`npm test` 会生成 ESM、CommonJS 和类型声明，验证完整入口、核心入口及扩展共享实例，并检查体积上限。`npm run size` 可查看每个构建文件的原始与 gzip 体积。`prepublishOnly` 会在发布前再次测试并检查最终包内容。
 
 ## 兼容性
 
