@@ -1,5 +1,7 @@
 # @happyqu/createjs-miniprogram
 
+[English](README.en.md) | 简体中文
+
 适配微信小程序 Canvas2D 的 CreateJS npm 包，提供完整入口和更易使用的 lite 组合入口。
 
 ## 安装
