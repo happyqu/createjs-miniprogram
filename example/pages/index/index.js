@@ -1,6 +1,8 @@
 const createjs = require("../../libs/createjs-miniprogram/easeljs.js");
 require("../../libs/createjs-miniprogram/animation.js");
 
+const SceneSession = require("../../utils/scene-session");
+
 Page({
   data: {
     ready: false,
@@ -13,7 +15,7 @@ Page({
       .select("#demoCanvas")
       .fields({ node: true, size: true })
       .exec(([result]) => {
-        if (!result || !result.node) {
+        if (this.unloaded || !result || !result.node) {
           return;
         }
         this.initDemo(result.node, result.width, result.height);
@@ -40,16 +42,16 @@ Page({
       allowDefault: true,
     });
 
-    this.buildScene(stage, width, height);
-    this.loadDemoImage(canvas, stage);
-
     createjs.Ticker.framerate = 60;
     this.tickHandler = () => {
       this.context.setTransform(1, 0, 0, 1, 0, 0);
       this.context.clearRect(0, 0, canvas.width, canvas.height);
       stage.update();
     };
-    createjs.Ticker.addEventListener("tick", this.tickHandler);
+    this.session = new SceneSession(createjs, this.tickHandler);
+    this.session.setActive(!this.hidden);
+    this.buildScene(stage, width, height);
+    this.loadDemoImage(canvas, stage);
     this.setData({ ready: true });
   },
 
@@ -84,7 +86,7 @@ Page({
     glow.y = 185;
     stage.addChild(glow);
 
-    createjs.Tween.get(glow, { loop: -1 })
+    this.session.tween(glow, { loop: -1 })
       .to({ scaleX: 1.18, scaleY: 1.18, alpha: 0.35 }, 1300, createjs.Ease.sineInOut)
       .to({ scaleX: 1, scaleY: 1, alpha: 1 }, 1300, createjs.Ease.sineInOut);
 
@@ -97,7 +99,7 @@ Page({
     orbit.x = centerX;
     orbit.y = 185;
     stage.addChild(orbit);
-    createjs.Tween.get(orbit, { loop: -1 }).to({ rotation: 360 }, 4200);
+    this.session.tween(orbit, { loop: -1 }).to({ rotation: 360 }, 4200);
 
     const logo = new createjs.Shape();
     logo.graphics
@@ -150,7 +152,7 @@ Page({
       .drawRect(-width, 386, width * 2, 74);
     maskedGradient.mask = trackMask;
     stage.addChild(maskedGradient);
-    createjs.Tween.get(maskedGradient, { loop: -1 })
+    this.session.tween(maskedGradient, { loop: -1 })
       .to({ x: width }, 2200, createjs.Ease.sineInOut)
       .to({ x: 0 }, 2200, createjs.Ease.sineInOut);
 
@@ -166,7 +168,7 @@ Page({
     ball.y = 423;
     ball.mask = trackMask;
     stage.addChild(ball);
-    createjs.Tween.get(ball, { loop: -1 })
+    this.session.tween(ball, { loop: -1 })
       .to({ x: width - 10, rotation: 360 }, 1500, createjs.Ease.quadInOut)
       .to({ x: 10, rotation: 0 }, 1500, createjs.Ease.quadInOut);
 
@@ -220,8 +222,8 @@ Page({
       const clicks = this.data.clicks + 1;
       this.setData({ clicks });
       buttonText.text = `已点击 ${clicks} 次`;
-      createjs.Tween.removeTweens(button);
-      createjs.Tween.get(button)
+      this.session.removeTweens(button);
+      this.session.tween(button)
         .to({ rotation: 4 }, 80)
         .to({ rotation: -4 }, 80)
         .to({ rotation: 0 }, 80);
@@ -269,7 +271,7 @@ Page({
       stage.addChild(border);
 
       bitmap.alpha = 0;
-      createjs.Tween.get(bitmap).to({ alpha: 1 }, 450, createjs.Ease.quadOut);
+      this.session.tween(bitmap).to({ alpha: 1 }, 450, createjs.Ease.quadOut);
     };
     image.onerror = (error) => {
       console.error("CreateJS 测试图片加载失败", error);
@@ -299,20 +301,24 @@ Page({
     this.setData({ stageCached: true });
   },
 
+  onHide() {
+    this.hidden = true;
+    if (this.session) this.session.setActive(false);
+    if (this.stage) createjs.Touch.disable(this.stage);
+  },
+
+  onShow() {
+    this.hidden = false;
+    if (this.session) this.session.setActive(true);
+    if (this.stage) createjs.Touch.enable(this.stage, {pixelRatio: this.dpr, allowDefault: true});
+  },
+
   onUnload() {
-    if (this.tickHandler) {
-      createjs.Ticker.removeEventListener("tick", this.tickHandler);
-    }
-    createjs.Tween.removeAllTweens();
-    if (this.stage) {
-      createjs.Touch.disable(this.stage);
-      this.stage.removeAllChildren();
-    }
-    this.stage = null;
-    this.canvas = null;
-    this.demoImage = null;
-    this.stageWidth = null;
-    this.stageHeight = null;
-    this.dpr = null;
+    this.unloaded = true;
+    if (this.session) this.session.dispose();
+    if (this.demoImage) this.demoImage.onload = this.demoImage.onerror = null;
+    if (this.stage) this.stage.dispose();
+    this.session = this.stage = this.canvas = this.context = this.demoImage = null;
+    this.stageWidth = this.stageHeight = this.dpr = null;
   },
 });

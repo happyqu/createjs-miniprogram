@@ -561,7 +561,7 @@ import createjs from "../../createjs/createjs";
 		if (!this.target) {
 			return false;
 		}
-		ctx.drawImage(
+		createjs.performance._recordDrawCall(); ctx.drawImage(
 			this._cacheCanvas,
 			this.x + (this._filterOffX / this.scale),
 			this.y + (this._filterOffY / this.scale),
@@ -579,8 +579,8 @@ import createjs from "../../createjs/createjs";
 	p.getBounds = function () {
 		var scale = this.scale;
 		return this._boundRect.setValues(
-			this.x, this.y,
-			this.width / scale, this.height / scale
+			this.x + this._filterOffX / scale, this.y + this._filterOffY / scale,
+			this._drawWidth / scale, this._drawHeight / scale
 		);
 	};
 

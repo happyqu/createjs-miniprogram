@@ -189,9 +189,15 @@ import createjs from "../../createjs/createjs";
 			}
 			// draw the child:
 			ctx.save();
-			child.updateContext(ctx);
-			child.draw(ctx);
-			ctx.restore();
+			var previousManager=child._dirtyRenderManager;
+			child._dirtyRenderManager=manager;
+			try {
+				child.updateContext(ctx);
+				child.draw(ctx);
+			} finally {
+				child._dirtyRenderManager=previousManager;
+				ctx.restore();
+			}
 		}
 		return true;
 	};

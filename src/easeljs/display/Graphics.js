@@ -134,6 +134,8 @@ import createjs from "../../createjs/createjs";
 	 * @constructor
 	 **/
 	function Graphics() {
+		// Disable command inspection only when callers use DisplayObject.invalidate().
+		this.trackCommandChanges=true;
 
 
 		// public properties
@@ -2068,7 +2070,7 @@ import createjs from "../../createjs/createjs";
 			ctx.save();
 			ctx.transform(mtx.a, mtx.b, mtx.c, mtx.d, mtx.tx, mtx.ty);
 		}
-		ctx.fill();
+		createjs.performance._recordDrawCall(); ctx.fill();
 		// ctx.draw();
 		if (mtx) {
 			ctx.restore();
@@ -2191,7 +2193,7 @@ import createjs from "../../createjs/createjs";
 			ctx.save();
 			ctx.setTransform(1, 0, 0, 1, 0, 0);
 		}
-		ctx.stroke();
+		createjs.performance._recordDrawCall(); ctx.stroke();
 		if (this.ignoreScale) {
 			ctx.restore();
 		}

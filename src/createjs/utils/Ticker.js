@@ -440,9 +440,10 @@ import createjs from "../createjs";
 	 * @static
 	 **/
 	Ticker.reset = function () {
+		Ticker._generation=(Ticker._generation || 0)+1;
 		if (Ticker._raf) {
 			// var f = window.cancelAnimationFrame || window.webkitCancelAnimationFrame || window.mozCancelAnimationFrame || window.oCancelAnimationFrame || window.msCancelAnimationFrame;
-			var f = false;
+			var f = Ticker._cancelRAF;
 			f && f(Ticker._timerId);
 		} else {
 			clearTimeout(Ticker._timerId);
@@ -450,6 +451,7 @@ import createjs from "../createjs";
 		Ticker.removeAllEventListeners("tick");
 		Ticker._timerId = Ticker._times = Ticker._tickTimes = null;
 		Ticker._startTime = Ticker._lastTime = Ticker._ticks = Ticker._pausedTime = 0;
+		Ticker._pausedTicks=0;
 		Ticker._inited = false;
 	};
 
@@ -554,6 +556,7 @@ import createjs from "../createjs";
 	 * @private
 	 **/
 	Ticker._handleSynch = function () {
+		if (!Ticker._inited) { return; }
 		Ticker._timerId = null;
 		Ticker._setupTick();
 
@@ -569,6 +572,7 @@ import createjs from "../createjs";
 	 * @private
 	 **/
 	Ticker._handleRAF = function () {
+		if (!Ticker._inited) { return; }
 		Ticker._timerId = null;
 		Ticker._setupTick();
 		Ticker._tick();
@@ -580,6 +584,7 @@ import createjs from "../createjs";
 	 * @private
 	 **/
 	Ticker._handleTimeout = function () {
+		if (!Ticker._inited) { return; }
 		Ticker._timerId = null;
 		Ticker._setupTick();
 		Ticker._tick();
@@ -599,7 +604,12 @@ import createjs from "../createjs";
 		if (mode == Ticker.RAF_SYNCHED || mode == Ticker.RAF) {
 			var f = Ticker.requestAnimationFrame;
 			if (f) {
-				Ticker._timerId = f(mode == Ticker.RAF ? Ticker._handleRAF : Ticker._handleSynch);
+				var generation=Ticker._generation || 0;
+				Ticker._cancelRAF=Ticker.cancelAnimationFrame;
+				Ticker._timerId = f(function() {
+					if (generation !== (Ticker._generation || 0)) { return; }
+					(mode == Ticker.RAF ? Ticker._handleRAF : Ticker._handleSynch)();
+				});
 				Ticker._raf = true;
 				return;
 			}
@@ -614,6 +624,7 @@ import createjs from "../createjs";
 	 * @private
 	 **/
 	Ticker._tick = function () {
+		var generation=Ticker._generation || 0;
 		var paused = Ticker.paused;
 		var time = Ticker._getTime();
 		var elapsedTime = time - Ticker._lastTime;
@@ -635,6 +646,7 @@ import createjs from "../createjs";
 			Ticker.dispatchEvent(event);
 		}
 
+		if (!Ticker._inited || generation !== (Ticker._generation || 0)) { return; }
 		Ticker._tickTimes.unshift(Ticker._getTime() - time);
 		while (Ticker._tickTimes.length > 100) {
 			Ticker._tickTimes.pop();

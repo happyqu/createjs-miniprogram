@@ -57,13 +57,13 @@ require("@happyqu/createjs-miniprogram/lite/filters");
 
 | 文件 | 原始体积 | 说明 |
 | --- | ---: | --- |
-| `index.js` | 108,691 B | 完整 EaselJS |
-| `lite.js` | 84,480 B（82.5KB） | 常用能力合集 |
+| `index.js` | 115,261 B（112.6KB） | 完整 EaselJS |
+| `lite.js` | 91,050 B（88.9KB） | 常用能力合集 |
 | `lite-animation.js` | 29,869 B（29.2KB） | 动画合集 |
 | `lite-filters.js` | 13,056 B | 滤镜合集 |
 | `tweenjs.js` | 23,812 B | 完整入口 TweenJS |
 
-完整入口已经删除小程序 Canvas2D 不会执行的 WebGL shader、uniform 和纹理上传代码，从 113,457 字节降至 108,691 字节。
+完整入口已删除小程序 Canvas2D 不会执行的 WebGL shader、uniform 和纹理上传代码。本轮增加失效检测、缓存预算、生命周期清理与性能指标，完整入口和 lite 相比上一版本各增加约 6.4KB；体积检查预算分别为 116,000 B 和 93,000 B。
 
 ## 如何选择
 

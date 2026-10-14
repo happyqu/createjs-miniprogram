@@ -236,9 +236,9 @@ import createjs from "../../createjs/createjs";
 		}
 		if (o.rect) {
 			var rect=o.rect;
-			if (rect.width && rect.height) { ctx.drawImage(o.image, rect.x, rect.y, rect.width, rect.height, -o.regX, -o.regY, rect.width, rect.height); }
+			if (rect.width && rect.height) { createjs.performance._recordDrawCall(); ctx.drawImage(o.image, rect.x, rect.y, rect.width, rect.height, -o.regX, -o.regY, rect.width, rect.height); }
 		} else if (o.width && o.height) {
-			ctx.drawImage(o.image, o.x, o.y, o.width, o.height, -o.regX, -o.regY, o.width, o.height);
+			createjs.performance._recordDrawCall(); ctx.drawImage(o.image, o.x, o.y, o.width, o.height, -o.regX, -o.regY, o.width, o.height);
 		}
 		return true;
 	};

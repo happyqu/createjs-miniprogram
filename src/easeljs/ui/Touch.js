@@ -44,6 +44,8 @@ import createjs from "../../createjs/createjs.js"
 		if (!stage || !stage.__touch) {
 			return false
 		}
+		var pointers=stage.__touch.pointers
+		for (var id in pointers) { Touch._handleEnd(stage, Number(id), {type:"touchcancel"}) }
 		delete stage.__touch
 		return true
 	}
@@ -75,6 +77,9 @@ import createjs from "../../createjs/createjs.js"
 					Touch._handleMove(stage, id, event, x * pixelRatio, y * pixelRatio)
 				}
 			} else if (type === "touchend" || type === "touchcancel") {
+				if (x != null && y != null && stage.__touch.pointers[id] && stage._updatePointerPosition) {
+					stage._updatePointerPosition(id, event, x * pixelRatio, y * pixelRatio)
+				}
 				Touch._handleEnd(stage, id, event)
 			}
 		}
@@ -105,7 +110,7 @@ import createjs from "../../createjs/createjs.js"
 		}
 		delete props.pointers[id]
 		props.count--
-		stage._handlePointerUp(id, event, true)
+		stage._handlePointerUp(id, event, true, undefined, event.type === "touchcancel")
 	}
 
 	createjs.Touch = Touch

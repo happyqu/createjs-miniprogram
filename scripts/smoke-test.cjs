@@ -214,9 +214,11 @@ cacheStage.update();
 cacheStage.update();
 cacheStage.update();
 assert.equal(staticGroup._autoCache, true);
+const retainedCache = staticGroup.bitmapCache;
 staticGroup.x = 10;
 cacheStage.update();
-assert.equal(staticGroup._autoCache, false);
+assert.equal(staticGroup._autoCache, true);
+assert.strictEqual(staticGroup.bitmapCache, retainedCache);
 
 const movieCacheCanvas = createjs.createCanvas(40, 40);
 const movieCacheStage = new createjs.Stage(movieCacheCanvas);

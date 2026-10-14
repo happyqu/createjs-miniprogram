@@ -3,10 +3,11 @@ const { readFileSync, readdirSync } = require("node:fs");
 
 const enforce = process.argv.includes("--check");
 const limits = {
-  "index.js": 110000,
-  "index.mjs": 110000,
-  "lite.js": 90000,
-  "lite.mjs": 90000,
+  // Additional invalidation, lifecycle and cache-budget code is about 6 KB.
+  "index.js": 116000,
+  "index.mjs": 116000,
+  "lite.js": 93000,
+  "lite.mjs": 93000,
   "lite-animation.js": 32000,
   "lite-animation.mjs": 32000,
   "lite-filters.js": 14000,

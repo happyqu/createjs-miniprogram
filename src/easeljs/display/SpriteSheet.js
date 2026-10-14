@@ -498,18 +498,28 @@ import createjs from "../../createjs/createjs";
 			return;
 		}
 		this.framerate = data.framerate || 0;
+		if (data.frames && !Array.isArray(data.frames) &&
+			(!(data.frames.width > 0) || !(data.frames.height > 0) ||
+			data.frames.width+(data.frames.spacing || 0) <= 0 || data.frames.height+(data.frames.spacing || 0) <= 0)) {
+			throw new Error("SpriteSheet frame dimensions and steps must be positive");
+		}
 
 		// parse images:
 		if (data.images && (l = data.images.length) > 0) {
 			a = this._images = [];
 			for (i = 0; i < l; i++) {
 				var img = data.images[i];
+				if (!img || typeof img === "string") { throw new Error("SpriteSheet requires CanvasImage or Canvas objects, not image URLs"); }
 				// if (typeof img == "string") {
 				// 	var src = img;
 				// 	img = document.createElement("img");
 				// 	img.src = src;
 				// }
 				a.push(img);
+				if (!img.getContext && !(img.width || img.naturalWidth) && img.complete !== true) {
+					this._loadCount++; this.complete=false;
+					SpriteSheet._watchImage(img,this);
+				}
 				// console.log(img.getContext,img.naturalWidth)
 				// if (!img.getContext && !img.naturalWidth) {
 				// 	this._loadCount++;
@@ -608,7 +618,8 @@ import createjs from "../../createjs/createjs";
 	p._handleImageLoad = function (src) {
 		if (--this._loadCount == 0) {
 			this._calculateFrames();
-			this.complete = true;
+			this._buildFrameCache();
+			this.complete = !this._loadFailed;
 			this.dispatchEvent("complete");
 		}
 	};
@@ -618,6 +629,7 @@ import createjs from "../../createjs/createjs";
 	 * @protected
 	 */
 	p._handleImageError = function (src) {
+		this._loadFailed=true;
 		var errorEvent = new createjs.Event("error");
 		errorEvent.src = src;
 		this.dispatchEvent(errorEvent);
@@ -626,6 +638,28 @@ import createjs from "../../createjs/createjs";
 		if (--this._loadCount == 0) {
 			this.dispatchEvent("complete");
 		}
+	};
+
+	// CanvasImage commonly exposes callback properties rather than DOM events.
+	// Share one subscription per image and preserve the application's callbacks.
+	var imageLoads=new WeakMap();
+	SpriteSheet._watchImage=function(image,sheet) {
+		var entry=imageLoads.get(image);
+		if (entry) { entry.sheets.push(sheet); return; }
+		entry={sheets:[sheet],load:image.onload,error:image.onerror}; imageLoads.set(image,entry);
+		function finish(failed,event) {
+			if (!imageLoads.has(image)) { return; }
+			imageLoads.delete(image);
+			if (image.onload===onload) { image.onload=entry.load; }
+			if (image.onerror===onerror) { image.onerror=entry.error; }
+			for (var i=0; i<entry.sheets.length; i++) {
+				var target=entry.sheets[i];
+				if (failed) { target._handleImageError(image.src); } else { target._handleImageLoad(image.src); }
+			}
+		}
+		function onload(event) { try { if (entry.load) { entry.load.call(image,event); } } finally { finish(false,event); } }
+		function onerror(event) { try { if (entry.error) { entry.error.call(image,event); } } finally { finish(true,event); } }
+		image.onload=onload; image.onerror=onerror;
 	};
 
 	/**

@@ -32,8 +32,8 @@ After installing the package, select **Tools → Build npm** in WeChat DevTools.
 
 | Use case | Entry points | Approximate CommonJS size |
 | --- | --- | ---: |
-| Complete EaselJS API | package root | 106.1 KB |
-| Typical Canvas application | `/lite` | 82.5 KB |
+| Complete EaselJS API | package root | 112.6 KB |
+| Typical Canvas application | `/lite` | 88.9 KB |
 | Lite with animation | `/lite` + `/lite/animation` | animation adds 29.2 KB |
 | Lite with filters | `/lite` + `/lite/filters` | filters add 12.8 KB |
 
@@ -325,3 +325,34 @@ and troubleshooting, see the
 ## License
 
 [MIT](LICENSE)
+
+## Invalidation and lifecycle
+
+Call `displayObject.invalidate()` after editing an external Canvas, custom graphics command, or resource.
+`stage.clear()` and changes to Canvas dimensions force the next frame to redraw. Assigning the same
+Canvas width/height also clears it; call `stage.invalidate()` in that case.
+
+Provide accurate `setBounds()` values for Shapes, including strokes. Visible objects without reliable
+bounds force full rendering and prevent automatic caching of their subtree. Translation and alpha
+changes reuse automatic caches. Content changes and increased sampling density release them.
+
+`stage.cacheBudgetPixels` limits automatic caches to 8,388,608 pixels by default (about 32 MiB of raw
+RGBA pixels); set it to zero to disable automatic caching. Manual caches are outside this budget.
+For API-only Graphics updates, `graphics.trackCommandChanges = false` avoids command scanning;
+call `shape.invalidate()` when directly editing commands in this mode.
+
+Bind both `Ticker.requestAnimationFrame` and `Ticker.cancelAnimationFrame` when using Canvas RAF.
+Pause only the current page's tweens and remove its tick listener when hidden. On unload, remove the
+listener and call `stage.dispose()`. The example's SceneSession manages this ownership.
+
+SpriteSheet accepts Canvas/CanvasImage objects and waits for unloaded images. Load URL strings into
+CanvasImage objects before passing them to SpriteSheet.
+
+`drawCount` counts drawn objects; `drawCalls` counts built-in Canvas drawing calls during update,
+including cache generation, excluding uninstrumented custom commands. `memory` estimates only
+automatic-cache raw pixel memory. Frame-time P50/P95 use the last 120 updates, not screen presentation
+time. The benchmark offers an optimization toggle and a deep vector scene.
+
+ESM exports a default namespace; use `import createjs from "@happyqu/createjs-miniprogram/lite"`.
+CommonJS uses `require()`. Each format has matching declarations. Tests include pixel comparisons,
+resource/touch/RAF regressions, page isolation and TypeScript checks. Device testing remains necessary.

@@ -362,6 +362,13 @@ import createjs from "../../createjs/createjs";
 
 	try {
 		Object.defineProperties(p, {
+			cacheBudgetPixels: {
+				get: function() { return this._cacheManager.maxTotalCachePixels; },
+				set: function(value) {
+					if (!isFinite(value) || value < 0) { throw new RangeError("cacheBudgetPixels must be finite and nonnegative"); }
+					this._cacheManager.clear(); this._cacheManager.maxTotalCachePixels=value; this._phase2FirstRender=true;
+				}
+			},
 			nextStage: {
 				get: p._get_nextStage,
 				set: p._set_nextStage
@@ -382,10 +389,10 @@ import createjs from "../../createjs/createjs";
 	p.update = function (props) {
 		if (!this.canvas) { return; }
 		var perf=createjs.performance, measure=perf && (perf.enable || perf.debug);
-		if (perf) { perf._active=!!measure; }
+		if (perf) { perf._active=!!measure; perf._drawCount=perf._canvasDrawCalls=0; }
 		var updateStart=measure ? perf._now() : 0;
 		if (this.tickOnUpdate) { this.tick(props); }
-		if (this.dispatchEvent("drawstart", false, true) === false) { return; }
+		if (this.dispatchEvent("drawstart", false, true) === false) { if (perf) { perf._active=false; } return; }
 		var phase2=perf && perf.phase2 !== false;
 		if (phase2) { this._phase2WasEnabled=true; }
 		else if (this._phase2WasEnabled) { this._disablePhase2(); }
@@ -395,9 +402,10 @@ import createjs from "../../createjs/createjs";
 		if (dirty && !dirty.fullRender && dirty.regions.length === 0) {
 			this.dispatchEvent("drawend");
 			if (measure) {
-				perf._setPhase2Metrics(dirty,false,this._cacheManager.cacheObjectCount,0,this._stageRenderList.length);
+				perf._setPhase2Metrics(dirty,false,this._cacheManager.cacheObjectCount,0,this._stageRenderList.length,this._cacheManager.totalCachePixels);
 				perf._snapshot(updateTime,perf._now()-renderStart,this._stageRenderList.length);
 			}
+			if (perf) { perf._active=false; }
 			return;
 		}
 		createjs.DisplayObject._snapToPixelEnabled = this.snapToPixelEnabled;
@@ -414,6 +422,7 @@ import createjs from "../../createjs/createjs";
 		// count++
 		// console.log(count)
 		ctx.save();
+		try {
 		if (dirty && !dirty.fullRender) {
 			ctx.beginPath();
 			for (i=0; i<dirty.regions.length; i++) { region=dirty.regions[i]; ctx.rect(region.x,region.y,region.width,region.height); }
@@ -428,32 +437,45 @@ import createjs from "../../createjs/createjs";
 		if (createjs.BitmapBatchRenderer && createjs.BitmapBatchRenderer._shared) { createjs.BitmapBatchRenderer._shared.batchCount=0; }
 		// this.ctx.drawImage(getApp().globalData.img,0,0);
 		this.draw(ctx, false);
-		this._dirtyRenderManager=null;
-		ctx.restore();
+		} catch (error) {
+			this._phase2FirstRender=true;
+			throw error;
+		} finally {
+			this._dirtyRenderManager=null;
+			ctx.restore();
+			if (perf) { perf._active=false; }
+		}
 		this.dispatchEvent("drawend");
 		if (measure) {
 			if (this._stageRenderListDirty) { this._rebuildStageRenderList(); }
 			perf._setPhase2Metrics(dirty,!dirty || dirty.fullRender,this._cacheManager.cacheObjectCount,
-				createjs.BitmapBatchRenderer._shared ? createjs.BitmapBatchRenderer._shared.batchCount : 0,this._stageRenderList.length);
+				createjs.BitmapBatchRenderer._shared ? createjs.BitmapBatchRenderer._shared.batchCount : 0,this._stageRenderList.length,this._cacheManager.totalCachePixels);
 			perf._snapshot(updateTime, perf._now()-renderStart, this._stageRenderList.length);
 		}
+		if (perf) { perf._active=false; }
 	};
 
 	/** Detects visual changes, updates auto caches, and returns dirty regions. @private */
 	p._preparePhase2 = function() {
 		var manager=this._dirtyRegionManager, canvas=this.canvas;
 		manager.reset(canvas.width,canvas.height);
+		if (this._phase2Width!==canvas.width || this._phase2Height!==canvas.height || this._phase2Content!==this._getPhase2ContentVersion()) {
+			manager.setFullRender();
+			this._phase2Width=canvas.width; this._phase2Height=canvas.height; this._phase2Content=this._getPhase2ContentVersion();
+		}
 		if (!this.autoClear || this.drawRect) { manager.setFullRender(); }
 		var stageProps=this._phase2StageProps;
 		if (!stageProps || stageProps.x!==this.x || stageProps.y!==this.y || stageProps.scaleX!==this.scaleX ||
 			stageProps.scaleY!==this.scaleY || stageProps.rotation!==this.rotation || stageProps.skewX!==this.skewX ||
 			stageProps.skewY!==this.skewY || stageProps.regX!==this.regX || stageProps.regY!==this.regY ||
-			stageProps.alpha!==this.alpha || stageProps.visible!==this.visible) {
+			stageProps.alpha!==this.alpha || stageProps.visible!==this.visible || stageProps.matrix!==this._matrixSignature(this.transformMatrix) ||
+			stageProps.snapToPixelEnabled!==this.snapToPixelEnabled || this.shadow || this.mask || this.compositeOperation || this.filters) {
 			manager.setFullRender();
 			stageProps=this._phase2StageProps=stageProps || {};
 			stageProps.x=this.x; stageProps.y=this.y; stageProps.scaleX=this.scaleX; stageProps.scaleY=this.scaleY;
 			stageProps.rotation=this.rotation; stageProps.skewX=this.skewX; stageProps.skewY=this.skewY;
 			stageProps.regX=this.regX; stageProps.regY=this.regY; stageProps.alpha=this.alpha; stageProps.visible=this.visible;
+			stageProps.matrix=this._matrixSignature(this.transformMatrix); stageProps.snapToPixelEnabled=this.snapToPixelEnabled;
 		}
 		// Detect advanced direct edits to the public children arrays before relying
 		// on the structural flat list.
@@ -473,6 +495,7 @@ import createjs from "../../createjs/createjs";
 		if (this._stageRenderListDirty) { this._rebuildStageRenderList(); list=this._stageRenderList; }
 
 		var frame=++this._phase2Frame, states=this._phase2States, changed={};
+		this.getMatrix(this._phase2Matrix);
 		for (i=0; i<list.length; i++) {
 			var o=list[i], previous=states[o.id], next=o._phase2NextState || (o._phase2NextState={});
 			next.xProp=o.x; next.yProp=o.y; next.scaleX=o.scaleX; next.scaleY=o.scaleY;
@@ -480,23 +503,34 @@ import createjs from "../../createjs/createjs";
 			next.regX=o.regX; next.regY=o.regY; next.alpha=o.alpha; next.visible=o.visible;
 			next.parentId=o.parent ? o.parent.id : -1; next.content=o._getPhase2ContentVersion();
 			next.image=o.image; var source=o.sourceRect;
+			next.imageWidth=o.image && (o.image.width || o.image.naturalWidth || 0);
+			next.imageHeight=o.image && (o.image.height || o.image.naturalHeight || 0);
+			next.spriteSheet=o.spriteSheet; next.matrix=this._matrixSignature(o.transformMatrix); next.snapToPixel=o.snapToPixel;
 			next.sourceX=source&&source.x; next.sourceY=source&&source.y; next.sourceW=source&&source.width; next.sourceH=source&&source.height;
-			o._updatePhase2Bounds(next);
+			var parentState=o.parent && states[o.parent.id];
+			o._updatePhase2Bounds(next,o.parent && (o.parent===this || parentState && parentState.seen===frame) ? o.parent._phase2Matrix : null);
+			// Unknown bounds can extend beyond an ancestor's measured rectangle.
+			if (!next.hasBounds && o.isVisible()) { manager.setFullRender(); }
 			var transformChanged=!previous || previous.xProp!==next.xProp || previous.yProp!==next.yProp ||
 				previous.scaleX!==next.scaleX || previous.scaleY!==next.scaleY || previous.rotation!==next.rotation ||
 				previous.skewX!==next.skewX || previous.skewY!==next.skewY || previous.regX!==next.regX || previous.regY!==next.regY ||
-				previous.alpha!==next.alpha || previous.visible!==next.visible;
-			var contentChanged=!previous || previous.content!==next.content || previous.image!==next.image ||
+				previous.alpha!==next.alpha || previous.visible!==next.visible || previous.matrix!==next.matrix || previous.snapToPixel!==next.snapToPixel;
+			var contentChanged=!previous || previous.content!==next.content || previous.image!==next.image || previous.spriteSheet!==next.spriteSheet ||
+				previous.imageWidth!==next.imageWidth || previous.imageHeight!==next.imageHeight ||
 				previous.sourceX!==next.sourceX || previous.sourceY!==next.sourceY || previous.sourceW!==next.sourceW || previous.sourceH!==next.sourceH;
 			var structureChanged=!previous || previous.parentId!==next.parentId;
 			var boundsChanged=!previous || previous.hasBounds!==next.hasBounds || (next.hasBounds &&
 				(previous.x!==next.x || previous.y!==next.y || previous.width!==next.width || previous.height!==next.height));
+			var localTransformChanged=transformChanged;
 			transformChanged=transformChanged || boundsChanged;
 			var isChanged=transformChanged || contentChanged || structureChanged;
+			// Descendants already contribute their old/new rectangles. Changes to
+			// their aggregate bounds alone must not dirty the entire container.
+			if (o.children && !localTransformChanged && !contentChanged && !structureChanged) { isChanged=false; }
 			o._displayDirty=structureChanged?3:(contentChanged?2:(transformChanged?1:0));
-			if (!o._isPhase2Trackable()) { manager.setFullRender(); isChanged=true; }
+			if (!o._isPhase2Trackable()) { manager.setFullRender(); isChanged=true; contentChanged=true; }
 			if (isChanged) {
-				changed[o.id]=true;
+				changed[o.id]=contentChanged || structureChanged ? 2 : (localTransformChanged ? 1 : 0);
 				if (previous && previous.hasBounds) { manager.addRect(previous); }
 				if (next.hasBounds) { manager.addRect(next); }
 				if (!next.hasBounds || (previous && !previous.hasBounds)) { manager.setFullRender(); }
@@ -519,6 +553,23 @@ import createjs from "../../createjs/createjs";
 		return manager;
 	};
 
+	p._matrixSignature = function(matrix) {
+		return matrix ? [matrix.a,matrix.b,matrix.c,matrix.d,matrix.tx,matrix.ty].join(",") : "";
+	};
+
+	/** Release internal render state when a page is unloaded. */
+	p.dispose = function() {
+		createjs.Touch.disable(this);
+		this.enableMouseOver(0);
+		this._disablePhase2();
+		this.uncache();
+		this.removeAllChildren();
+		this.removeAllEventListeners();
+		this._stageRenderList.length=0; this._renderList.length=0; this._tickList.length=0;
+		this._pointerData={}; this._primaryPointerID=null;
+		this.canvas=this.ctx=null;
+	};
+
 	/** Releases every internal optimization artifact for the documented fallback. @private */
 	p._disablePhase2 = function() {
 		for (var id in this._phase2States) {
@@ -531,6 +582,7 @@ import createjs from "../../createjs/createjs";
 		this._phase2StageProps=null;
 		this._phase2WasEnabled=false;
 		this._cacheManager.cacheObjectCount=0;
+		this._cacheManager.clear();
 	};
 
 	/** @private */
@@ -642,6 +694,7 @@ import createjs from "../../createjs/createjs";
 		var ctx = this.canvas.getContext("2d");
 		ctx.setTransform(1, 0, 0, 1, 0, 0);
 		ctx.clearRect(0, 0, this.canvas.width + 1, this.canvas.height + 1);
+		this._phase2FirstRender=true;
 	};
 
 	/**
@@ -929,7 +982,7 @@ import createjs from "../../createjs/createjs";
 	 * @param {Boolean} clear
 	 * @param {Stage} owner Indicates that the event has already been captured & handled by the indicated stage.
 	 **/
-	p._handlePointerUp = function (id, e, clear, owner) {
+	p._handlePointerUp = function (id, e, clear, owner, cancelled) {
 		var nextStage = this._nextStage, o = this._getPointerData(id);
 		if (this._prevStage && owner === undefined) { return; } // redundant listener.
 		
@@ -938,7 +991,7 @@ import createjs from "../../createjs/createjs";
 		
 		if (o.down) { this._dispatchMouseEvent(this, "stagemouseup", false, id, o, e, target); o.down = false; }
 		
-		if (target == oTarget) { this._dispatchMouseEvent(oTarget, "click", true, id, o, e); }
+		if (!cancelled && o.inBounds && target == oTarget) { this._dispatchMouseEvent(oTarget, "click", true, id, o, e); }
 		this._dispatchMouseEvent(oTarget, "pressup", true, id, o, e);
 		
 		if (clear) {
@@ -946,7 +999,7 @@ import createjs from "../../createjs/createjs";
 			delete(this._pointerData[id]);
 		} else { o.target = null; }
 		
-		nextStage&&nextStage._handlePointerUp(id, e, clear, owner || target && this);
+		nextStage&&nextStage._handlePointerUp(id, e, clear, owner || target && this, cancelled);
 	};
 
 	/**

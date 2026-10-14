@@ -155,9 +155,9 @@ import createjs from "../../createjs/createjs";
 			if (x2 > w) { x2 = w; }
 			if (y1 < 0) { y -= y1; y1 = 0; }
 			if (y2 > h) { y2 = h; }
-			ctx.drawImage(img, x1, y1, x2-x1, y2-y1, x, y, x2-x1, y2-y1);
+			createjs.performance._recordDrawCall(); ctx.drawImage(img, x1, y1, x2-x1, y2-y1, x, y, x2-x1, y2-y1);
 		} else {
-			ctx.drawImage(img, 0, 0);
+			createjs.performance._recordDrawCall(); ctx.drawImage(img, 0, 0);
 		}
 		return true;
 	};
@@ -177,7 +177,7 @@ import createjs from "../../createjs/createjs";
 		if (img && img.getImage) { img = img.getImage(); }
 		if (!img) { return; }
 		if (!rect) {
-			ctx.drawImage(img, this.x, this.y);
+			createjs.performance._recordDrawCall(); ctx.drawImage(img, this.x, this.y);
 			return;
 		}
 		var x1=rect.x, y1=rect.y, x2=x1+rect.width, y2=y1+rect.height, x=this.x, y=this.y, w=img.width, h=img.height;
@@ -185,7 +185,7 @@ import createjs from "../../createjs/createjs";
 		if (x2 > w) { x2 = w; }
 		if (y1 < 0) { y -= y1; y1 = 0; }
 		if (y2 > h) { y2 = h; }
-		ctx.drawImage(img, x1, y1, x2-x1, y2-y1, x, y, x2-x1, y2-y1);
+		createjs.performance._recordDrawCall(); ctx.drawImage(img, x1, y1, x2-x1, y2-y1, x, y, x2-x1, y2-y1);
 	};
 
 	//Note, the doc sections below document using the specified APIs (from DisplayObject)  from

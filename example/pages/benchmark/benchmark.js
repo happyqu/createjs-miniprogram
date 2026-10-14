@@ -1,16 +1,19 @@
 const createjs = require("../../libs/createjs-miniprogram/easeljs.js");
 require("../../libs/createjs-miniprogram/animation.js");
 
+const SceneSession = require("../../utils/scene-session");
+
 Page({
   data: {
     testName: "1000 Bitmap", fps: "0.0", updateTime: "0.00", renderTime: "0.00",
     drawCount: 0, displayObjectCount: 0, firstPaint: 0, memory: "N/A",
     dirtyRect: 0, fullRender: true, cacheObject: 0, skippedObjects: 0, bitmapBatches: 0,
+    phase2: true, drawCalls: 0, p50: "0.00", p95: "0.00",
   },
 
   onReady() {
     wx.createSelectorQuery().select("#benchmarkCanvas").fields({ node: true, size: true })
-      .exec(([result]) => result && this.init(result.node, result.width, result.height));
+      .exec(([result]) => !this.unloaded && result && result.node && this.init(result.node, result.width, result.height));
   },
 
   init(canvas, width, height) {
@@ -24,22 +27,25 @@ Page({
     const tileContext = this.tile.getContext("2d");
     tileContext.fillStyle = "#65dcff";
     tileContext.fillRect(0, 0, 8, 8);
-    createjs.performance.enable = true;
+    this.previousPerformance = {enable:createjs.performance.enable, phase2:createjs.performance.phase2};
+    createjs.performance.enable = !this.hidden;
     createjs.Ticker.framerate = 60;
     this.tick = (event) => {
+      createjs.performance.phase2 = this.data.phase2;
       this.stage.update(event);
       if (!this.firstPaintRecorded) {
         this.firstPaintRecorded = true;
         this.setData({ firstPaint: Date.now() - this.startTime });
       }
     };
-    createjs.Ticker.addEventListener("tick", this.tick);
-    this.metricsTimer = setInterval(() => this.updateMetrics(), 500);
+    this.session = new SceneSession(createjs, this.tick);
+    this.session.setActive(!this.hidden);
+    if (!this.hidden) this.metricsTimer = setInterval(() => this.updateMetrics(), 500);
     this.buildBitmapTest();
   },
 
   reset(name) {
-    createjs.Tween.removeAllTweens();
+    this.session.clearTweens();
     this.stage.removeAllChildren();
     createjs.performance.reset();
     this.startTime = Date.now();
@@ -78,16 +84,41 @@ Page({
       bitmap.x = (i % 10) * (this.width / 10);
       bitmap.y = ((i / 10) | 0) * (this.height / 10);
       this.stage.addChild(bitmap);
-      createjs.Tween.get(bitmap, { loop: -1 })
+      this.session.tween(bitmap, { loop: -1 })
         .to({ x: Math.min(this.width - 8, bitmap.x + 18) }, 500 + i * 2)
         .to({ x: bitmap.x }, 500 + i * 2);
     }
+  },
+
+  toggleOptimization() {
+    this.setData({phase2: !this.data.phase2});
+    createjs.performance.reset();
+  },
+
+  buildDeepTest() {
+    this.reset("深层容器与复杂 Shape");
+    const root = new createjs.Container();
+    let parent = root;
+    for (let depth=0; depth<20; depth++) {
+      const child = new createjs.Container(); child.x=1; child.y=1;
+      parent.addChild(child); parent=child;
+    }
+    for (let i=0; i<100; i++) {
+      const shape = new createjs.Shape();
+      shape.graphics.beginFill("#65dcff");
+      for (let j=0; j<20; j++) shape.graphics.drawRect(j, j%5, 2, 2);
+      shape.setBounds(0,0,22,7);
+      shape.x=(i%10)*(this.width/10); shape.y=((i/10)|0)*(this.height/10);
+      parent.addChild(shape);
+    }
+    this.stage.addChild(root);
   },
 
   runTest(event) {
     const test = event.currentTarget.dataset.test;
     if (test === "movieclip") this.buildMovieClipTest();
     else if (test === "moving") this.buildMovingTest();
+    else if (test === "deep") this.buildDeepTest();
     else this.buildBitmapTest();
   },
 
@@ -99,15 +130,41 @@ Page({
       displayObjectCount: metrics.displayObjectCount,
       dirtyRect: metrics.dirtyRect, fullRender: metrics.fullRender,
       cacheObject: metrics.cacheObject, skippedObjects: metrics.skippedObjects,
+      drawCalls: metrics.drawCalls, p50: metrics.frameTimeP50.toFixed(2), p95: metrics.frameTimeP95.toFixed(2),
       bitmapBatches: metrics.bitmapBatches,
       memory: metrics.memory == null ? "N/A" : `${(metrics.memory / 1048576).toFixed(1)} MB`,
     });
   },
 
-  onUnload() {
-    if (this.tick) createjs.Ticker.removeEventListener("tick", this.tick);
+  onHide() {
+    this.hidden = true;
+    if (this.session) this.session.setActive(false);
     if (this.metricsTimer) clearInterval(this.metricsTimer);
-    createjs.Tween.removeAllTweens();
-    createjs.performance.enable = false;
+    this.metricsTimer = null;
+    if (this.previousPerformance) {
+      createjs.performance.enable = this.previousPerformance.enable;
+      createjs.performance.phase2 = this.previousPerformance.phase2;
+      this.previousPerformance = null;
+    }
+  },
+
+  onShow() {
+    this.hidden = false;
+    if (this.session) {
+      this.previousPerformance = {enable:createjs.performance.enable, phase2:createjs.performance.phase2};
+      createjs.performance.enable = true;
+      createjs.performance.phase2 = this.data.phase2;
+      createjs.performance.reset();
+      this.session.setActive(true);
+      if (!this.metricsTimer) this.metricsTimer = setInterval(() => this.updateMetrics(), 500);
+    }
+  },
+
+  onUnload() {
+    this.unloaded = true;
+    this.onHide();
+    if (this.session) this.session.dispose();
+    if (this.stage) this.stage.dispose();
+    this.session = this.stage = this.tile = null;
   },
 });

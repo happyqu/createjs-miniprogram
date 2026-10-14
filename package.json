@@ -1,6 +1,6 @@
 {
   "name": "@happyqu/createjs-miniprogram",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "CreateJS (EaselJS and TweenJS) adapted for WeChat Mini Programs",
   "keywords": [
     "createjs",
@@ -23,37 +23,62 @@
   "author": "happy",
   "main": "./dist/index.js",
   "module": "./dist/index.mjs",
-  "types": "./dist/index.d.ts",
+  "types": "./dist/index.d.cts",
   "miniprogram": "./dist",
   "exports": {
     ".": {
-      "types": "./dist/index.d.ts",
-      "import": "./dist/index.mjs",
-      "require": "./dist/index.js",
+      "import": {
+        "types": "./dist/index.d.mts",
+        "default": "./dist/index.mjs"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.js"
+      },
       "default": "./dist/index.mjs"
     },
     "./tweenjs": {
-      "types": "./dist/tweenjs.d.ts",
-      "import": "./dist/tweenjs.mjs",
-      "require": "./dist/tweenjs.js",
+      "import": {
+        "types": "./dist/tweenjs.d.mts",
+        "default": "./dist/tweenjs.mjs"
+      },
+      "require": {
+        "types": "./dist/tweenjs.d.cts",
+        "default": "./dist/tweenjs.js"
+      },
       "default": "./dist/tweenjs.mjs"
     },
     "./lite": {
-      "types": "./dist/lite.d.ts",
-      "import": "./dist/lite.mjs",
-      "require": "./dist/lite.js",
+      "import": {
+        "types": "./dist/lite.d.mts",
+        "default": "./dist/lite.mjs"
+      },
+      "require": {
+        "types": "./dist/lite.d.cts",
+        "default": "./dist/lite.js"
+      },
       "default": "./dist/lite.mjs"
     },
     "./lite/animation": {
-      "types": "./dist/lite-animation.d.ts",
-      "import": "./dist/lite-animation.mjs",
-      "require": "./dist/lite-animation.js",
+      "import": {
+        "types": "./dist/lite-animation.d.mts",
+        "default": "./dist/lite-animation.mjs"
+      },
+      "require": {
+        "types": "./dist/lite-animation.d.cts",
+        "default": "./dist/lite-animation.js"
+      },
       "default": "./dist/lite-animation.mjs"
     },
     "./lite/filters": {
-      "types": "./dist/lite-filters.d.ts",
-      "import": "./dist/lite-filters.mjs",
-      "require": "./dist/lite-filters.js",
+      "import": {
+        "types": "./dist/lite-filters.d.mts",
+        "default": "./dist/lite-filters.mjs"
+      },
+      "require": {
+        "types": "./dist/lite-filters.d.cts",
+        "default": "./dist/lite-filters.js"
+      },
       "default": "./dist/lite-filters.mjs"
     },
     "./package.json": "./package.json"
@@ -74,11 +99,13 @@
     "build": "node scripts/build.cjs",
     "size": "node scripts/size-report.cjs",
     "check:size": "node scripts/size-report.cjs --check",
-    "test": "npm run build && node scripts/check-browser-globals.cjs && node scripts/smoke-test.cjs && node scripts/lite-smoke-test.cjs && node scripts/filter-regression-test.cjs && npm run check:size",
+    "test": "npm run build && node scripts/check-browser-globals.cjs && node scripts/smoke-test.cjs && node scripts/lite-smoke-test.cjs && node scripts/filter-regression-test.cjs && node scripts/render-regression-test.cjs && node scripts/render-pixel-test.cjs && node scripts/lifecycle-regression-test.cjs && node scripts/types-regression-test.cjs && npm run check:size",
     "prepublishOnly": "npm test && npm pack --dry-run"
   },
   "devDependencies": {
-    "esbuild": "^0.25.0"
+    "@napi-rs/canvas": "^0.1.80",
+    "esbuild": "^0.25.0",
+    "typescript": "^5.9.3"
   },
   "engines": {
     "node": ">=18"

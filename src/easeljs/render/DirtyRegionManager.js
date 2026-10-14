@@ -33,10 +33,11 @@ import createjs from "../../createjs/createjs";
 			var current=this.regions[i];
 			if (!this._touches(current,next)) { i++; continue; }
 			var nx=Math.min(current.x,next.x), ny=Math.min(current.y,next.y);
+			var nr=Math.max(current.x+current.width,next.x+next.width), nb=Math.max(current.y+current.height,next.y+next.height);
 			next.x=nx; next.y=ny;
-			next.width=Math.max(current.x+current.width,next.x+next.width)-nx;
-			next.height=Math.max(current.y+current.height,next.y+next.height)-ny;
+			next.width=nr-nx; next.height=nb-ny;
 			this.regions.splice(i,1);
+			i=0;
 		}
 		this.regions.push(next);
 	};
